@@ -466,6 +466,79 @@
             font-size: 1.125rem;
         }
         
+        /* Roadmap Section */
+        .roadmap {
+            padding: 6rem 2rem;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        .roadmap-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1.5rem;
+            margin-top: 3rem;
+        }
+        
+        .roadmap-card {
+            background: var(--discord-dark);
+            border: 1px solid var(--discord-lighter);
+            border-radius: 12px;
+            padding: 1.5rem;
+        }
+        
+        .roadmap-card h3 {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            font-size: 1.125rem;
+            font-weight: 600;
+            margin-bottom: 1rem;
+            color: var(--discord-text);
+        }
+        
+        .roadmap-card h3 .status {
+            font-size: 0.75rem;
+            padding: 0.25rem 0.5rem;
+            border-radius: 100px;
+            font-weight: 500;
+        }
+        
+        .status-planned {
+            background: rgba(148, 155, 164, 0.2);
+            color: var(--discord-text-muted);
+        }
+        
+        .status-next {
+            background: rgba(240, 178, 50, 0.2);
+            color: var(--discord-warning);
+        }
+        
+        .status-future {
+            background: rgba(88, 101, 242, 0.2);
+            color: var(--discord-accent);
+        }
+        
+        .roadmap-card ul {
+            list-style: none;
+        }
+        
+        .roadmap-card li {
+            padding: 0.5rem 0;
+            color: var(--discord-text-muted);
+            display: flex;
+            align-items: flex-start;
+            gap: 0.75rem;
+            font-size: 0.9375rem;
+        }
+        
+        .roadmap-card li::before {
+            content: "○";
+            color: var(--discord-text-muted);
+            font-size: 0.75rem;
+            margin-top: 0.2rem;
+        }
+        
         /* Footer */
         footer {
             padding: 3rem 2rem;
@@ -542,8 +615,9 @@
         
         <ul class="nav-links">
             <li><a href="#features">Features</a></li>
+            <li><a href="#roadmap">Roadmap</a></li>
             <li><a href="#download">Download</a></li>
-            <li><a href="https://github.com/ferovar/SalesforceQueryTool" target="_blank">Documentation</a></li>
+            <li><a href="https://github.com/ferovar/SalesforceQueryTool" target="_blank">GitHub</a></li>
         </ul>
         
         <a href="https://github.com/ferovar/SalesforceQueryTool" target="_blank" class="github-link">
@@ -699,6 +773,94 @@
                         <li>Dated interface</li>
                     </ul>
                 </div>
+            </div>
+        </div>
+    </section>
+    
+    <!-- Roadmap Section -->
+    <section class="roadmap" id="roadmap">
+        <div class="section-header">
+            <h2>Roadmap</h2>
+            <p>Here's what's coming next. Have a feature request? Open an issue on GitHub!</p>
+        </div>
+        
+        <div class="roadmap-grid">
+            <div class="roadmap-card">
+                <h3>
+                    🎯 Up Next
+                    <span class="status status-next">In Progress</span>
+                </h3>
+                <ul>
+                    <li>Field autocomplete in query editor</li>
+                    <li>Recent queries quick access</li>
+                    <li>Query history with search</li>
+                    <li>SOQL syntax highlighting</li>
+                </ul>
+            </div>
+            
+            <div class="roadmap-card">
+                <h3>
+                    🔄 Data Sync
+                    <span class="status status-planned">Planned</span>
+                </h3>
+                <ul>
+                    <li>Push query results to another org</li>
+                    <li>Data migration between orgs</li>
+                    <li>Maintain related record relationships</li>
+                    <li>Bulk upsert operations</li>
+                </ul>
+            </div>
+            
+            <div class="roadmap-card">
+                <h3>
+                    ✏️ Data Editing
+                    <span class="status status-planned">Planned</span>
+                </h3>
+                <ul>
+                    <li>Inline record editing in results</li>
+                    <li>Bulk delete selected records</li>
+                    <li>Create new records</li>
+                    <li>Field-level validation</li>
+                </ul>
+            </div>
+            
+            <div class="roadmap-card">
+                <h3>
+                    📊 Enhanced Export
+                    <span class="status status-planned">Planned</span>
+                </h3>
+                <ul>
+                    <li>Export to Excel (.xlsx)</li>
+                    <li>Export to JSON</li>
+                    <li>Custom export templates</li>
+                    <li>Scheduled exports</li>
+                </ul>
+            </div>
+            
+            <div class="roadmap-card">
+                <h3>
+                    🔍 Schema Tools
+                    <span class="status status-future">Future</span>
+                </h3>
+                <ul>
+                    <li>Visual schema/relationship diagram</li>
+                    <li>Object describe panel</li>
+                    <li>Field metadata viewer</li>
+                    <li>Compare schemas between orgs</li>
+                </ul>
+            </div>
+            
+            <div class="roadmap-card">
+                <h3>
+                    ⚡ Power Features
+                    <span class="status status-future">Future</span>
+                </h3>
+                <ul>
+                    <li>Multiple query tabs</li>
+                    <li>Keyboard shortcuts</li>
+                    <li>Query explain plan</li>
+                    <li>Anonymous Apex execution</li>
+                </ul>
             </div>
         </div>
     </section>
