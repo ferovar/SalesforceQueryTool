@@ -2,6 +2,8 @@
 
 A modern, Discord-inspired desktop application for querying Salesforce data. Built with Electron, React, and TypeScript.
 
+**[🌐 Visit the Website](https://redlinejoes.github.io/SalesforceQueryTool/)** | **[📥 Download Latest Release](https://github.com/redlinejoes/SalesforceQueryTool/releases/latest)**
+
 ![Salesforce Query Tool](docs/screenshot.png)
 
 ## Features
@@ -12,6 +14,7 @@ A modern, Discord-inspired desktop application for querying Salesforce data. Bui
 - 🏢 **Multi-Environment** - Support for both Production and Sandbox orgs
 - 📋 **Object Browser** - Browse and search all Salesforce objects
 - 🔍 **Query Builder** - Visual field selection and SOQL editing
+- 💾 **Saved Queries** - Save and manage queries per object
 - 📊 **Results Table** - Sortable, scrollable data grid
 - 📥 **CSV Export** - Export query results with one click
 - 🗑️ **Include Deleted** - Query deleted records (queryAll)
@@ -27,7 +30,7 @@ A modern, Discord-inspired desktop application for querying Salesforce data. Bui
 
 1. Clone the repository:
 ```bash
-git clone https://github.com/yourusername/SalesforceQueryTool.git
+git clone https://github.com/redlinejoes/SalesforceQueryTool.git
 cd SalesforceQueryTool
 ```
 

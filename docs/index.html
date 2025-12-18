@@ -1,0 +1,781 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Salesforce Query Tool - Modern SOQL Query Client for Windows</title>
+    <meta name="description" content="A modern, Discord-inspired desktop application for querying Salesforce data. Free and open source.">
+    <meta name="keywords" content="Salesforce, SOQL, Query Tool, SoqlX, Windows, Desktop App, Electron">
+    
+    <!-- Open Graph / Social -->
+    <meta property="og:title" content="Salesforce Query Tool">
+    <meta property="og:description" content="A modern, Discord-inspired desktop application for querying Salesforce data.">
+    <meta property="og:type" content="website">
+    
+    <!-- Favicon -->
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>☁️</text></svg>">
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --discord-darker: #1e1f22;
+            --discord-dark: #2b2d31;
+            --discord-medium: #313338;
+            --discord-light: #383a40;
+            --discord-lighter: #404249;
+            --discord-text: #dbdee1;
+            --discord-text-muted: #949ba4;
+            --discord-accent: #5865f2;
+            --discord-accent-hover: #4752c4;
+            --discord-success: #23a559;
+            --discord-warning: #f0b232;
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, var(--discord-darker) 0%, #0f0f12 100%);
+            color: var(--discord-text);
+            min-height: 100vh;
+            line-height: 1.6;
+        }
+        
+        /* Animated background */
+        .bg-animation {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            z-index: -1;
+        }
+        
+        .bg-animation .star {
+            position: absolute;
+            width: 2px;
+            height: 2px;
+            background: white;
+            border-radius: 50%;
+            opacity: 0;
+            animation: twinkle 4s infinite;
+        }
+        
+        @keyframes twinkle {
+            0%, 100% { opacity: 0; }
+            50% { opacity: 0.8; }
+        }
+        
+        /* Navigation */
+        nav {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: rgba(30, 31, 34, 0.8);
+            backdrop-filter: blur(10px);
+            z-index: 100;
+            border-bottom: 1px solid var(--discord-lighter);
+        }
+        
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            font-weight: 700;
+            font-size: 1.25rem;
+            color: var(--discord-text);
+            text-decoration: none;
+        }
+        
+        .logo-icon {
+            width: 32px;
+            height: 32px;
+            background: var(--discord-accent);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .nav-links {
+            display: flex;
+            gap: 2rem;
+            list-style: none;
+        }
+        
+        .nav-links a {
+            color: var(--discord-text-muted);
+            text-decoration: none;
+            font-weight: 500;
+            transition: color 0.2s;
+        }
+        
+        .nav-links a:hover {
+            color: var(--discord-text);
+        }
+        
+        .github-link {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem 1rem;
+            background: var(--discord-lighter);
+            border-radius: 8px;
+            color: var(--discord-text);
+            text-decoration: none;
+            font-weight: 500;
+            transition: background 0.2s;
+        }
+        
+        .github-link:hover {
+            background: var(--discord-light);
+        }
+        
+        /* Hero Section */
+        .hero {
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            padding: 8rem 2rem 4rem;
+        }
+        
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem 1rem;
+            background: rgba(88, 101, 242, 0.2);
+            border: 1px solid rgba(88, 101, 242, 0.3);
+            border-radius: 100px;
+            color: var(--discord-accent);
+            font-size: 0.875rem;
+            font-weight: 500;
+            margin-bottom: 1.5rem;
+        }
+        
+        h1 {
+            font-size: clamp(2.5rem, 6vw, 4rem);
+            font-weight: 800;
+            line-height: 1.1;
+            margin-bottom: 1.5rem;
+            background: linear-gradient(135deg, var(--discord-text) 0%, var(--discord-text-muted) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        .hero-subtitle {
+            font-size: 1.25rem;
+            color: var(--discord-text-muted);
+            max-width: 600px;
+            margin-bottom: 2.5rem;
+        }
+        
+        .cta-buttons {
+            display: flex;
+            gap: 1rem;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+        
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.875rem 1.75rem;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 1rem;
+            text-decoration: none;
+            transition: all 0.2s;
+            cursor: pointer;
+            border: none;
+        }
+        
+        .btn-primary {
+            background: var(--discord-accent);
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background: var(--discord-accent-hover);
+            transform: translateY(-2px);
+            box-shadow: 0 10px 40px rgba(88, 101, 242, 0.3);
+        }
+        
+        .btn-secondary {
+            background: var(--discord-lighter);
+            color: var(--discord-text);
+        }
+        
+        .btn-secondary:hover {
+            background: var(--discord-light);
+            transform: translateY(-2px);
+        }
+        
+        /* Screenshot */
+        .screenshot-container {
+            margin-top: 4rem;
+            padding: 0 2rem;
+            max-width: 1200px;
+            width: 100%;
+        }
+        
+        .screenshot {
+            width: 100%;
+            border-radius: 12px;
+            box-shadow: 0 25px 100px rgba(0, 0, 0, 0.5);
+            border: 1px solid var(--discord-lighter);
+        }
+        
+        .screenshot-placeholder {
+            width: 100%;
+            aspect-ratio: 16/10;
+            background: var(--discord-dark);
+            border-radius: 12px;
+            border: 1px solid var(--discord-lighter);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: var(--discord-text-muted);
+        }
+        
+        .screenshot-placeholder svg {
+            width: 64px;
+            height: 64px;
+            margin-bottom: 1rem;
+            opacity: 0.5;
+        }
+        
+        /* Features Section */
+        .features {
+            padding: 6rem 2rem;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        .section-header {
+            text-align: center;
+            margin-bottom: 4rem;
+        }
+        
+        .section-header h2 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 1rem;
+        }
+        
+        .section-header p {
+            color: var(--discord-text-muted);
+            font-size: 1.125rem;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+        
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1.5rem;
+        }
+        
+        .feature-card {
+            background: var(--discord-dark);
+            border: 1px solid var(--discord-lighter);
+            border-radius: 12px;
+            padding: 1.5rem;
+            transition: all 0.3s;
+        }
+        
+        .feature-card:hover {
+            transform: translateY(-4px);
+            border-color: var(--discord-accent);
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+        }
+        
+        .feature-icon {
+            width: 48px;
+            height: 48px;
+            background: rgba(88, 101, 242, 0.2);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 1rem;
+            font-size: 1.5rem;
+        }
+        
+        .feature-card h3 {
+            font-size: 1.125rem;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+        }
+        
+        .feature-card p {
+            color: var(--discord-text-muted);
+            font-size: 0.9375rem;
+        }
+        
+        /* Comparison Section */
+        .comparison {
+            padding: 6rem 2rem;
+            background: var(--discord-dark);
+        }
+        
+        .comparison-content {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        .comparison-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 2rem;
+            margin-top: 3rem;
+        }
+        
+        .comparison-card {
+            background: var(--discord-medium);
+            border-radius: 12px;
+            padding: 2rem;
+            text-align: center;
+        }
+        
+        .comparison-card.highlight {
+            background: linear-gradient(135deg, rgba(88, 101, 242, 0.2) 0%, rgba(88, 101, 242, 0.05) 100%);
+            border: 2px solid var(--discord-accent);
+        }
+        
+        .comparison-card h3 {
+            font-size: 1.25rem;
+            margin-bottom: 0.5rem;
+        }
+        
+        .comparison-card .price {
+            font-size: 2.5rem;
+            font-weight: 800;
+            color: var(--discord-accent);
+            margin: 1rem 0;
+        }
+        
+        .comparison-card ul {
+            list-style: none;
+            text-align: left;
+            margin-top: 1.5rem;
+        }
+        
+        .comparison-card li {
+            padding: 0.5rem 0;
+            color: var(--discord-text-muted);
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+        
+        .comparison-card li::before {
+            content: "✓";
+            color: var(--discord-success);
+            font-weight: bold;
+        }
+        
+        /* Download Section */
+        .download {
+            padding: 6rem 2rem;
+            text-align: center;
+        }
+        
+        .download-content {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        
+        .download h2 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 1rem;
+        }
+        
+        .download p {
+            color: var(--discord-text-muted);
+            font-size: 1.125rem;
+            margin-bottom: 2rem;
+        }
+        
+        .download-buttons {
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+        
+        .download-btn {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            padding: 1rem 2rem;
+            background: var(--discord-dark);
+            border: 1px solid var(--discord-lighter);
+            border-radius: 12px;
+            text-decoration: none;
+            color: var(--discord-text);
+            transition: all 0.2s;
+        }
+        
+        .download-btn:hover {
+            background: var(--discord-medium);
+            border-color: var(--discord-accent);
+            transform: translateY(-2px);
+        }
+        
+        .download-btn .icon {
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .download-btn .text {
+            text-align: left;
+        }
+        
+        .download-btn .text .label {
+            font-size: 0.75rem;
+            color: var(--discord-text-muted);
+        }
+        
+        .download-btn .text .platform {
+            font-weight: 600;
+            font-size: 1.125rem;
+        }
+        
+        /* Footer */
+        footer {
+            padding: 3rem 2rem;
+            border-top: 1px solid var(--discord-lighter);
+            text-align: center;
+            color: var(--discord-text-muted);
+        }
+        
+        footer a {
+            color: var(--discord-accent);
+            text-decoration: none;
+        }
+        
+        footer a:hover {
+            text-decoration: underline;
+        }
+        
+        /* Responsive */
+        @media (max-width: 768px) {
+            nav {
+                padding: 1rem;
+            }
+            
+            .nav-links {
+                display: none;
+            }
+            
+            .hero {
+                padding: 6rem 1rem 3rem;
+            }
+            
+            .cta-buttons {
+                flex-direction: column;
+                width: 100%;
+                padding: 0 1rem;
+            }
+            
+            .btn {
+                width: 100%;
+                justify-content: center;
+            }
+            
+            .download-buttons {
+                flex-direction: column;
+                align-items: center;
+            }
+            
+            .download-btn {
+                width: 100%;
+                max-width: 300px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Animated Background -->
+    <div class="bg-animation" id="bgAnimation"></div>
+    
+    <!-- Navigation -->
+    <nav>
+        <a href="#" class="logo">
+            <div class="logo-icon">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
+                    <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+                    <polyline points="7.5 4.21 12 6.81 16.5 4.21"/>
+                    <polyline points="7.5 19.79 7.5 14.6 3 12"/>
+                    <polyline points="21 12 16.5 14.6 16.5 19.79"/>
+                    <polyline points="3.27 6.96 12 12.01 20.73 6.96"/>
+                    <line x1="12" y1="22.08" x2="12" y2="12"/>
+                </svg>
+            </div>
+            SF Query Tool
+        </a>
+        
+        <ul class="nav-links">
+            <li><a href="#features">Features</a></li>
+            <li><a href="#download">Download</a></li>
+            <li><a href="https://github.com/redlinejoes/SalesforceQueryTool" target="_blank">Documentation</a></li>
+        </ul>
+        
+        <a href="https://github.com/redlinejoes/SalesforceQueryTool" target="_blank" class="github-link">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>
+            </svg>
+            GitHub
+        </a>
+    </nav>
+    
+    <!-- Hero Section -->
+    <section class="hero">
+        <span class="badge">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
+            </svg>
+            Open Source & Free Forever
+        </span>
+        
+        <h1>The Modern Salesforce<br>Query Tool for Windows</h1>
+        
+        <p class="hero-subtitle">
+            A beautiful, Discord-inspired desktop application for querying Salesforce data. 
+            Think SoqlX, but for Windows — and completely free.
+        </p>
+        
+        <div class="cta-buttons">
+            <a href="https://github.com/redlinejoes/SalesforceQueryTool/releases/latest" class="btn btn-primary">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                    <polyline points="7 10 12 15 17 10"/>
+                    <line x1="12" y1="15" x2="12" y2="3"/>
+                </svg>
+                Download for Windows
+            </a>
+            <a href="https://github.com/redlinejoes/SalesforceQueryTool" target="_blank" class="btn btn-secondary">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>
+                </svg>
+                View on GitHub
+            </a>
+        </div>
+        
+        <div class="screenshot-container">
+            <div class="screenshot-placeholder">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1">
+                    <rect x="2" y="3" width="20" height="14" rx="2" ry="2"/>
+                    <line x1="8" y1="21" x2="16" y2="21"/>
+                    <line x1="12" y1="17" x2="12" y2="21"/>
+                </svg>
+                <p>Screenshot coming soon</p>
+                <p style="font-size: 0.875rem; margin-top: 0.5rem;">Add screenshot.png to the docs folder</p>
+            </div>
+            <!-- Uncomment when you have a screenshot:
+            <img src="screenshot.png" alt="Salesforce Query Tool Screenshot" class="screenshot">
+            -->
+        </div>
+    </section>
+    
+    <!-- Features Section -->
+    <section class="features" id="features">
+        <div class="section-header">
+            <h2>Everything you need to query Salesforce</h2>
+            <p>Built for developers and admins who need a fast, reliable way to explore and query Salesforce data.</p>
+        </div>
+        
+        <div class="features-grid">
+            <div class="feature-card">
+                <div class="feature-icon">🎨</div>
+                <h3>Modern Dark Theme</h3>
+                <p>Discord-inspired UI designed for comfortable extended use. Easy on the eyes during those long debugging sessions.</p>
+            </div>
+            
+            <div class="feature-card">
+                <div class="feature-icon">🔐</div>
+                <h3>Secure Authentication</h3>
+                <p>Login with username/password or OAuth. Your credentials are encrypted and stored securely on your machine.</p>
+            </div>
+            
+            <div class="feature-card">
+                <div class="feature-icon">💾</div>
+                <h3>Saved Connections</h3>
+                <p>Save multiple Salesforce connections with custom labels. Switch between orgs instantly without re-entering credentials.</p>
+            </div>
+            
+            <div class="feature-card">
+                <div class="feature-icon">📋</div>
+                <h3>Object Browser</h3>
+                <p>Browse all standard and custom objects. Search and filter to find what you need quickly.</p>
+            </div>
+            
+            <div class="feature-card">
+                <div class="feature-icon">🔍</div>
+                <h3>Visual Field Picker</h3>
+                <p>Select fields visually with type information. No more guessing field names or looking up API references.</p>
+            </div>
+            
+            <div class="feature-card">
+                <div class="feature-icon">💾</div>
+                <h3>Saved Queries</h3>
+                <p>Save your frequently used queries per object. Update them as needed and track when they were last run.</p>
+            </div>
+            
+            <div class="feature-card">
+                <div class="feature-icon">📊</div>
+                <h3>Sortable Results</h3>
+                <p>View results in a clean data grid. Sort by any column and handle large result sets with ease.</p>
+            </div>
+            
+            <div class="feature-card">
+                <div class="feature-icon">📥</div>
+                <h3>CSV Export</h3>
+                <p>Export your query results to CSV with a single click. Perfect for reports and data analysis.</p>
+            </div>
+            
+            <div class="feature-card">
+                <div class="feature-icon">🗑️</div>
+                <h3>Query Deleted Records</h3>
+                <p>Include deleted and archived records in your queries using Salesforce's queryAll functionality.</p>
+            </div>
+        </div>
+    </section>
+    
+    <!-- Comparison Section -->
+    <section class="comparison">
+        <div class="comparison-content">
+            <div class="section-header">
+                <h2>Why SF Query Tool?</h2>
+                <p>Finally, a modern Salesforce query tool for Windows users.</p>
+            </div>
+            
+            <div class="comparison-grid">
+                <div class="comparison-card">
+                    <h3>SoqlX</h3>
+                    <div class="price">Mac Only</div>
+                    <p style="color: var(--discord-text-muted);">Great tool, but only available for macOS</p>
+                    <ul>
+                        <li>Native Mac application</li>
+                        <li>Feature-rich query tool</li>
+                        <li>No Windows support</li>
+                    </ul>
+                </div>
+                
+                <div class="comparison-card highlight">
+                    <h3>SF Query Tool</h3>
+                    <div class="price">Free</div>
+                    <p style="color: var(--discord-text-muted);">Open source, forever free</p>
+                    <ul>
+                        <li>Windows native application</li>
+                        <li>Modern Discord-style UI</li>
+                        <li>Saved queries & connections</li>
+                        <li>OAuth & password auth</li>
+                        <li>Active development</li>
+                    </ul>
+                </div>
+                
+                <div class="comparison-card">
+                    <h3>Workbench</h3>
+                    <div class="price">Web-Based</div>
+                    <p style="color: var(--discord-text-muted);">Browser-based, requires internet</p>
+                    <ul>
+                        <li>Works anywhere</li>
+                        <li>No installation needed</li>
+                        <li>Dated interface</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </section>
+    
+    <!-- Download Section -->
+    <section class="download" id="download">
+        <div class="download-content">
+            <h2>Ready to get started?</h2>
+            <p>Download SF Query Tool for free and start querying your Salesforce data in minutes.</p>
+            
+            <div class="download-buttons">
+                <a href="https://github.com/redlinejoes/SalesforceQueryTool/releases/latest" class="download-btn">
+                    <div class="icon">
+                        <svg width="32" height="32" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M0 3.449L9.75 2.1v9.451H0m10.949-9.602L24 0v11.4H10.949M0 12.6h9.75v9.451L0 20.699M10.949 12.6H24V24l-12.9-1.801"/>
+                        </svg>
+                    </div>
+                    <div class="text">
+                        <span class="label">Download for</span>
+                        <span class="platform">Windows</span>
+                    </div>
+                </a>
+                
+                <a href="https://github.com/redlinejoes/SalesforceQueryTool" target="_blank" class="download-btn">
+                    <div class="icon">
+                        <svg width="32" height="32" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>
+                        </svg>
+                    </div>
+                    <div class="text">
+                        <span class="label">View source on</span>
+                        <span class="platform">GitHub</span>
+                    </div>
+                </a>
+            </div>
+        </div>
+    </section>
+    
+    <!-- Footer -->
+    <footer>
+        <p>
+            Made with ❤️ by <a href="https://github.com/redlinejoes" target="_blank">redlinejoes</a>
+            &nbsp;•&nbsp;
+            <a href="https://github.com/redlinejoes/SalesforceQueryTool" target="_blank">GitHub</a>
+            &nbsp;•&nbsp;
+            <a href="https://github.com/redlinejoes/SalesforceQueryTool/issues" target="_blank">Report an Issue</a>
+        </p>
+        <p style="margin-top: 0.5rem; font-size: 0.875rem;">
+            SF Query Tool is not affiliated with Salesforce, Inc.
+        </p>
+    </footer>
+    
+    <!-- Background Animation Script -->
+    <script>
+        const bgAnimation = document.getElementById('bgAnimation');
+        const starCount = 50;
+        
+        for (let i = 0; i < starCount; i++) {
+            const star = document.createElement('div');
+            star.className = 'star';
+            star.style.left = Math.random() * 100 + '%';
+            star.style.top = Math.random() * 100 + '%';
+            star.style.animationDelay = Math.random() * 4 + 's';
+            star.style.animationDuration = (Math.random() * 3 + 2) + 's';
+            bgAnimation.appendChild(star);
+        }
+    </script>
+</body>
+</html>
