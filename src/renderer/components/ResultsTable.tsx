@@ -57,11 +57,46 @@ const ResultsTable: React.FC<ResultsTableProps> = ({
     }
   };
 
-  const formatValue = (value: any): string => {
+  const formatValue = (value: any, column?: string): string => {
     if (value === null || value === undefined) return '';
     if (typeof value === 'boolean') return value ? 'true' : 'false';
-    if (typeof value === 'object') return JSON.stringify(value);
+    if (typeof value === 'object') {
+      // Handle Salesforce relationship objects (e.g., CreatedBy.Name returns { Name: "..." })
+      // Check if it's a simple relationship object with an 'attributes' key (Salesforce metadata)
+      if (value.attributes && typeof value.attributes === 'object') {
+        // This is a full related record - extract meaningful values
+        const { attributes, ...rest } = value;
+        const keys = Object.keys(rest);
+        if (keys.length === 1) {
+          // Single field from relationship (most common case)
+          return formatValue(rest[keys[0]]);
+        }
+        // Multiple fields - show as readable format
+        return keys.map(k => `${k}: ${formatValue(rest[k])}`).join(', ');
+      }
+      // Check for simple nested value without attributes (less common)
+      const keys = Object.keys(value);
+      if (keys.length === 1 && typeof value[keys[0]] !== 'object') {
+        return String(value[keys[0]]);
+      }
+      // Fallback to JSON for complex nested objects
+      return JSON.stringify(value);
+    }
     return String(value);
+  };
+
+  // Get value from a record, handling dot notation for nested fields
+  const getValue = (record: any, column: string): any => {
+    // Check if this might be a relationship field (contains a dot in the query)
+    // Salesforce returns relationship data as nested objects
+    const value = record[column];
+    
+    // If value is an object with attributes, it's a relationship record
+    if (value && typeof value === 'object') {
+      return value;
+    }
+    
+    return value;
   };
 
   // Loading state
