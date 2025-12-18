@@ -132,6 +132,7 @@ ipcMain.handle('window:isMaximized', () => {
 
 // IPC Handlers for Salesforce operations
 ipcMain.handle('salesforce:login', async (_event, credentials: {
+  label: string;
   username: string;
   password: string;
   securityToken: string;
@@ -148,6 +149,7 @@ ipcMain.handle('salesforce:login', async (_event, credentials: {
     
     if (credentials.saveCredentials) {
       credentialsStore.saveCredentials({
+        label: credentials.label || credentials.username,
         username: credentials.username,
         password: credentials.password,
         securityToken: credentials.securityToken,
@@ -161,9 +163,36 @@ ipcMain.handle('salesforce:login', async (_event, credentials: {
   }
 });
 
-ipcMain.handle('salesforce:loginOAuth', async (_event, isSandbox: boolean) => {
+ipcMain.handle('salesforce:loginOAuth', async (_event, options: { isSandbox: boolean; saveConnection: boolean; label: string; clientId: string }) => {
   try {
-    const result = await salesforceService.loginWithOAuth(isSandbox);
+    const result = await salesforceService.loginWithOAuth(options.isSandbox, options.clientId);
+    
+    if (options.saveConnection) {
+      credentialsStore.saveOAuthLogin({
+        label: options.label || result.username,
+        instanceUrl: result.instanceUrl,
+        accessToken: result.accessToken,
+        refreshToken: result.refreshToken,
+        isSandbox: options.isSandbox,
+        username: result.username,
+        clientId: options.clientId,
+      });
+    }
+    
+    return { success: true, data: result };
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('salesforce:loginWithSavedOAuth', async (_event, id: string) => {
+  try {
+    const savedOAuth = credentialsStore.getOAuthLoginById(id);
+    if (!savedOAuth) {
+      return { success: false, error: 'Saved OAuth connection not found' };
+    }
+    
+    const result = await salesforceService.loginWithSavedOAuth(savedOAuth.instanceUrl, savedOAuth.accessToken);
     return { success: true, data: result };
   } catch (error: any) {
     return { success: false, error: error.message };
@@ -231,5 +260,18 @@ ipcMain.handle('credentials:getSavedLogins', () => {
 
 ipcMain.handle('credentials:deleteSavedLogin', (_event, username: string) => {
   credentialsStore.deleteSavedLogin(username);
+  return { success: true };
+});
+
+ipcMain.handle('credentials:getLoginByUsername', (_event, username: string) => {
+  return credentialsStore.getLoginByUsername(username);
+});
+
+ipcMain.handle('credentials:getSavedOAuthLogins', () => {
+  return credentialsStore.getSavedOAuthLogins();
+});
+
+ipcMain.handle('credentials:deleteOAuthLogin', (_event, id: string) => {
+  credentialsStore.deleteOAuthLogin(id);
   return { success: true };
 });

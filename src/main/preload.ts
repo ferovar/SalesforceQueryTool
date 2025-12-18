@@ -12,6 +12,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Salesforce operations
   salesforce: {
     login: (credentials: {
+      label: string;
       username: string;
       password: string;
       securityToken: string;
@@ -19,7 +20,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
       saveCredentials: boolean;
     }) => ipcRenderer.invoke('salesforce:login', credentials),
     
-    loginOAuth: (isSandbox: boolean) => ipcRenderer.invoke('salesforce:loginOAuth', isSandbox),
+    loginOAuth: (options: { isSandbox: boolean; saveConnection: boolean; label: string; clientId: string }) => 
+      ipcRenderer.invoke('salesforce:loginOAuth', options),
+    
+    loginWithSavedOAuth: (id: string) => ipcRenderer.invoke('salesforce:loginWithSavedOAuth', id),
     
     logout: () => ipcRenderer.invoke('salesforce:logout'),
     
@@ -40,5 +44,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
     clear: () => ipcRenderer.invoke('credentials:clear'),
     getSavedLogins: () => ipcRenderer.invoke('credentials:getSavedLogins'),
     deleteSavedLogin: (username: string) => ipcRenderer.invoke('credentials:deleteSavedLogin', username),
+    getLoginByUsername: (username: string) => ipcRenderer.invoke('credentials:getLoginByUsername', username),
+    getSavedOAuthLogins: () => ipcRenderer.invoke('credentials:getSavedOAuthLogins'),
+    deleteOAuthLogin: (id: string) => ipcRenderer.invoke('credentials:deleteOAuthLogin', id),
   },
 });

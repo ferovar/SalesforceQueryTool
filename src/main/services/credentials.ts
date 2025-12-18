@@ -2,6 +2,7 @@ import Store from 'electron-store';
 import * as crypto from 'crypto';
 
 interface StoredCredentials {
+  label: string;
   username: string;
   password: string;
   securityToken: string;
@@ -9,16 +10,32 @@ interface StoredCredentials {
 }
 
 interface SavedLogin {
+  label: string;
   username: string;
   password: string;
   securityToken: string;
   isSandbox: boolean;
   lastUsed: string;
+  loginType: 'credentials';
+}
+
+interface SavedOAuthLogin {
+  id: string;
+  label: string;
+  instanceUrl: string;
+  accessToken: string;
+  refreshToken: string;
+  isSandbox: boolean;
+  username: string;
+  clientId: string;
+  lastUsed: string;
+  loginType: 'oauth';
 }
 
 interface StoreSchema {
   lastCredentials: StoredCredentials | null;
   savedLogins: SavedLogin[];
+  savedOAuthLogins: SavedOAuthLogin[];
   encryptionKey: string;
 }
 
@@ -32,6 +49,7 @@ export class CredentialsStore {
       defaults: {
         lastCredentials: null,
         savedLogins: [],
+        savedOAuthLogins: [],
         encryptionKey: '',
       },
     });
@@ -73,6 +91,7 @@ export class CredentialsStore {
 
   saveCredentials(credentials: StoredCredentials): void {
     const encrypted: StoredCredentials = {
+      label: credentials.label,
       username: credentials.username,
       password: this.encrypt(credentials.password),
       securityToken: this.encrypt(credentials.securityToken),
@@ -90,6 +109,7 @@ export class CredentialsStore {
     const loginEntry: SavedLogin = {
       ...encrypted,
       lastUsed: new Date().toISOString(),
+      loginType: 'credentials',
     };
 
     if (existingIndex >= 0) {
@@ -101,12 +121,91 @@ export class CredentialsStore {
     this.store.set('savedLogins', savedLogins);
   }
 
+  saveOAuthLogin(oauthData: {
+    label: string;
+    instanceUrl: string;
+    accessToken: string;
+    refreshToken: string;
+    isSandbox: boolean;
+    username: string;
+    clientId: string;
+  }): void {
+    const id = `oauth_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    
+    const encrypted: SavedOAuthLogin = {
+      id,
+      label: oauthData.label,
+      instanceUrl: oauthData.instanceUrl,
+      accessToken: this.encrypt(oauthData.accessToken),
+      refreshToken: oauthData.refreshToken ? this.encrypt(oauthData.refreshToken) : '',
+      isSandbox: oauthData.isSandbox,
+      username: oauthData.username,
+      clientId: oauthData.clientId,
+      lastUsed: new Date().toISOString(),
+      loginType: 'oauth',
+    };
+
+    const savedOAuthLogins = this.store.get('savedOAuthLogins') || [];
+    
+    // Check if we already have this username saved (update it)
+    const existingIndex = savedOAuthLogins.findIndex(
+      (login) => login.username === oauthData.username
+    );
+
+    if (existingIndex >= 0) {
+      encrypted.id = savedOAuthLogins[existingIndex].id; // Keep same ID
+      savedOAuthLogins[existingIndex] = encrypted;
+    } else {
+      savedOAuthLogins.push(encrypted);
+    }
+
+    this.store.set('savedOAuthLogins', savedOAuthLogins);
+  }
+
+  getSavedOAuthLogins(): Array<{ id: string; label: string; username: string; isSandbox: boolean; lastUsed: string; loginType: 'oauth' }> {
+    const savedOAuthLogins = this.store.get('savedOAuthLogins') || [];
+    return savedOAuthLogins.map((login) => ({
+      id: login.id,
+      label: login.label || login.username,
+      username: login.username,
+      isSandbox: login.isSandbox,
+      lastUsed: login.lastUsed,
+      loginType: 'oauth' as const,
+    }));
+  }
+
+  getOAuthLoginById(id: string): { instanceUrl: string; accessToken: string; refreshToken: string; isSandbox: boolean; username: string } | null {
+    const savedOAuthLogins = this.store.get('savedOAuthLogins') || [];
+    const login = savedOAuthLogins.find((l) => l.id === id);
+    
+    if (!login) return null;
+
+    try {
+      return {
+        instanceUrl: login.instanceUrl,
+        accessToken: this.decrypt(login.accessToken),
+        refreshToken: login.refreshToken ? this.decrypt(login.refreshToken) : '',
+        isSandbox: login.isSandbox,
+        username: login.username,
+      };
+    } catch {
+      return null;
+    }
+  }
+
+  deleteOAuthLogin(id: string): void {
+    const savedOAuthLogins = this.store.get('savedOAuthLogins') || [];
+    const filtered = savedOAuthLogins.filter((login) => login.id !== id);
+    this.store.set('savedOAuthLogins', filtered);
+  }
+
   getCredentials(): StoredCredentials | null {
     const encrypted = this.store.get('lastCredentials');
     if (!encrypted) return null;
 
     try {
       return {
+        label: encrypted.label || encrypted.username,
         username: encrypted.username,
         password: this.decrypt(encrypted.password),
         securityToken: this.decrypt(encrypted.securityToken),
@@ -117,9 +216,10 @@ export class CredentialsStore {
     }
   }
 
-  getSavedLogins(): Array<{ username: string; isSandbox: boolean; lastUsed: string }> {
+  getSavedLogins(): Array<{ label: string; username: string; isSandbox: boolean; lastUsed: string }> {
     const savedLogins = this.store.get('savedLogins') || [];
     return savedLogins.map((login) => ({
+      label: login.label || login.username,
       username: login.username,
       isSandbox: login.isSandbox,
       lastUsed: login.lastUsed,
@@ -134,6 +234,7 @@ export class CredentialsStore {
 
     try {
       return {
+        label: login.label || login.username,
         username: login.username,
         password: this.decrypt(login.password),
         securityToken: this.decrypt(login.securityToken),

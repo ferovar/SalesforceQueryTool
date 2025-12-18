@@ -13,7 +13,9 @@ export interface ElectronAPI {
       saveCredentials: boolean;
     }) => Promise<{ success: boolean; data?: any; error?: string }>;
     
-    loginOAuth: (isSandbox: boolean) => Promise<{ success: boolean; data?: any; error?: string }>;
+    loginOAuth: (options: { isSandbox: boolean; saveConnection: boolean; label: string; clientId: string }) => Promise<{ success: boolean; data?: any; error?: string }>;
+    
+    loginWithSavedOAuth: (id: string) => Promise<{ success: boolean; data?: any; error?: string }>;
     
     logout: () => Promise<{ success: boolean; error?: string }>;
     
@@ -31,6 +33,9 @@ export interface ElectronAPI {
     clear: () => Promise<{ success: boolean }>;
     getSavedLogins: () => Promise<SavedLogin[]>;
     deleteSavedLogin: (username: string) => Promise<{ success: boolean }>;
+    getLoginByUsername: (username: string) => Promise<StoredCredentials | null>;
+    getSavedOAuthLogins: () => Promise<SavedOAuthLogin[]>;
+    deleteOAuthLogin: (id: string) => Promise<{ success: boolean }>;
   };
 }
 
@@ -64,6 +69,7 @@ export interface ObjectDescription {
 }
 
 export interface StoredCredentials {
+  label: string;
   username: string;
   password: string;
   securityToken: string;
@@ -71,9 +77,19 @@ export interface StoredCredentials {
 }
 
 export interface SavedLogin {
+  label: string;
   username: string;
   isSandbox: boolean;
   lastUsed: string;
+}
+
+export interface SavedOAuthLogin {
+  id: string;
+  label: string;
+  username: string;
+  isSandbox: boolean;
+  lastUsed: string;
+  loginType: 'oauth';
 }
 
 declare global {
