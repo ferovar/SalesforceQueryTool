@@ -573,7 +573,7 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
                 <div className="mb-4">
                   <div className="flex items-center justify-between mb-2">
                     <label className="block text-sm font-medium text-discord-text">
-                      Connected App Client ID
+                      Client ID (Consumer Key)
                     </label>
                     <button
                       type="button"
@@ -586,15 +586,27 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
                   
                   {showOAuthSetup && (
                     <div className="mb-3 p-3 bg-discord-lighter rounded-lg text-xs text-discord-text-muted space-y-2">
-                      <p className="font-medium text-discord-text">Create a Connected App in Salesforce:</p>
+                      <p className="font-medium text-discord-text">Create an External Client App in Salesforce:</p>
                       <ol className="list-decimal list-inside space-y-1 ml-2">
-                        <li>Go to Setup → App Manager → New Connected App</li>
-                        <li>Enter any name (e.g., "Query Tool")</li>
-                        <li>Check "Enable OAuth Settings"</li>
-                        <li>Set Callback URL: <code className="bg-discord-darker px-1 rounded">http://localhost:1717/OauthRedirect</code></li>
-                        <li>Select scopes: "Full access (full)" and "Perform requests at any time (refresh_token)"</li>
-                        <li>Save and copy the Consumer Key (Client ID)</li>
+                        <li>Log into the org you want to connect to</li>
+                        <li>Go to Setup → search "External Client App Manager"</li>
+                        <li>Click "New External Client App"</li>
+                        <li>Enter a name (e.g., "Salesforce Query Tool")</li>
+                        <li>Under "Distribution State", select "Local"</li>
+                        <li>Click "Create" then go to the "OAuth Settings" tab</li>
+                        <li>Click "Add a Consumer Key & Secret" → "Add"</li>
+                        <li>Enable "User Authorization" flow</li>
+                        <li>Add Callback URL: <code className="bg-discord-darker px-1 rounded">http://localhost:1717/OauthRedirect</code></li>
+                        <li>Add scopes: "Manage user data via APIs (api)" and "Perform requests at any time (refresh_token, offline_access)"</li>
+                        <li>Copy the Consumer Key (Client ID)</li>
                       </ol>
+                      <div className="mt-2 p-2 bg-discord-darker rounded border-l-2 border-discord-warning">
+                        <p className="text-discord-warning font-medium">Important:</p>
+                        <p>The Client ID is org-specific. You need to create an External Client App in <strong>each org</strong> you want to connect to via OAuth.</p>
+                      </div>
+                      <p className="text-discord-text-muted mt-2 italic">
+                        Tip: Username/Password login doesn't require this setup and works with any org.
+                      </p>
                     </div>
                   )}
                   
@@ -605,6 +617,9 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
                     placeholder="3MVG9..."
                     className="input font-mono text-sm"
                   />
+                  <p className="text-xs text-discord-text-muted mt-1">
+                    Client ID from the org you want to connect to
+                  </p>
                 </div>
 
                 {/* Save Connection & Label */}
