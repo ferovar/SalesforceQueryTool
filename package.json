@@ -1,0 +1,80 @@
+{
+  "name": "salesforce-query-tool",
+  "version": "1.0.0",
+  "description": "A modern Salesforce query tool for Windows - like SoqlX but better",
+  "main": "dist/main/main.js",
+  "author": "Your Name",
+  "license": "MIT",
+  "scripts": {
+    "dev": "concurrently -k \"npm run dev:renderer\" \"npm run dev:main\"",
+    "dev:renderer": "vite --port 5173 --strictPort",
+    "dev:main": "tsc -p tsconfig.main.json && electron .",
+    "build": "npm run build:renderer && npm run build:main",
+    "build:renderer": "vite build",
+    "build:main": "tsc -p tsconfig.main.json",
+    "start": "electron .",
+    "package": "npm run build && electron-builder --win",
+    "package:dir": "npm run build && electron-builder --win --dir"
+  },
+  "dependencies": {
+    "electron-store": "^8.1.0",
+    "jsforce": "^1.11.1"
+  },
+  "devDependencies": {
+    "@types/jsforce": "^1.11.6",
+    "@types/node": "^20.10.0",
+    "@types/react": "^18.2.42",
+    "@types/react-dom": "^18.2.17",
+    "@vitejs/plugin-react": "^4.2.1",
+    "autoprefixer": "^10.4.16",
+    "concurrently": "^8.2.2",
+    "electron": "^28.0.0",
+    "electron-builder": "^24.9.1",
+    "postcss": "^8.4.32",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "tailwindcss": "^3.3.6",
+    "typescript": "^5.3.2",
+    "vite": "^5.0.6"
+  },
+  "build": {
+    "appId": "com.salesforce.querytool",
+    "productName": "Salesforce Query Tool",
+    "directories": {
+      "output": "release"
+    },
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "assets/icon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Salesforce Query Tool"
+    },
+    "portable": {
+      "artifactName": "${productName}-Portable-${version}.${ext}"
+    },
+    "files": [
+      "dist/**/*",
+      "assets/**/*"
+    ],
+    "asar": true,
+    "compression": "maximum"
+  }
+}

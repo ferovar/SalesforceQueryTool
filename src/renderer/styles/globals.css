@@ -1,0 +1,181 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body, #root {
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+}
+
+body {
+  font-family: 'Segoe UI', 'Whitney', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Custom scrollbar styles - Discord-like */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #1e1f22;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #383a40;
+}
+
+/* Title bar drag region */
+.drag-region {
+  -webkit-app-region: drag;
+}
+
+.no-drag {
+  -webkit-app-region: no-drag;
+}
+
+/* Input focus styles */
+input:focus, textarea:focus, select:focus {
+  outline: none;
+}
+
+/* Custom checkbox */
+.custom-checkbox {
+  @apply appearance-none w-5 h-5 rounded bg-discord-dark border-2 border-discord-lighter cursor-pointer;
+  @apply checked:bg-discord-accent checked:border-discord-accent;
+  @apply relative;
+}
+
+.custom-checkbox:checked::after {
+  content: '';
+  position: absolute;
+  left: 5px;
+  top: 2px;
+  width: 5px;
+  height: 10px;
+  border: solid white;
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+
+/* Animation utilities */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideIn {
+  from { 
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to { 
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.2s ease-out;
+}
+
+.animate-slide-in {
+  animation: slideIn 0.3s ease-out;
+}
+
+/* Table styles */
+.data-table {
+  @apply w-full text-sm;
+}
+
+.data-table th {
+  @apply sticky top-0 bg-discord-dark text-discord-text-muted font-semibold text-left px-3 py-2 border-b border-discord-lighter;
+}
+
+.data-table td {
+  @apply px-3 py-2 border-b border-discord-light text-discord-text;
+}
+
+.data-table tr:hover td {
+  @apply bg-discord-light;
+}
+
+/* Code editor styles */
+.query-editor {
+  @apply font-mono text-sm bg-discord-darker text-discord-text p-4 rounded-lg;
+  @apply border border-discord-light focus:border-discord-accent;
+  min-height: 150px;
+  resize: vertical;
+}
+
+/* Button variants */
+.btn {
+  @apply px-4 py-2 rounded font-medium transition-colors duration-200;
+  @apply focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-discord-dark;
+}
+
+.btn-primary {
+  @apply bg-discord-accent hover:bg-discord-accent-hover text-white;
+  @apply focus:ring-discord-accent;
+}
+
+.btn-secondary {
+  @apply bg-discord-lighter hover:bg-discord-light text-discord-text;
+  @apply focus:ring-discord-lighter;
+}
+
+.btn-success {
+  @apply bg-discord-success hover:opacity-90 text-white;
+  @apply focus:ring-discord-success;
+}
+
+.btn-danger {
+  @apply bg-discord-danger hover:opacity-90 text-white;
+  @apply focus:ring-discord-danger;
+}
+
+.btn-ghost {
+  @apply bg-transparent hover:bg-discord-light text-discord-text-muted hover:text-discord-text;
+}
+
+/* Input styles */
+.input {
+  @apply w-full px-3 py-2 rounded bg-discord-darker text-discord-text;
+  @apply border border-discord-light focus:border-discord-accent;
+  @apply placeholder-discord-text-muted;
+}
+
+.input-error {
+  @apply border-discord-danger focus:border-discord-danger;
+}
+
+/* Select styles */
+.select {
+  @apply w-full px-3 py-2 rounded bg-discord-darker text-discord-text;
+  @apply border border-discord-light focus:border-discord-accent;
+  @apply cursor-pointer;
+}
+
+/* Tooltip */
+.tooltip {
+  @apply invisible opacity-0 absolute z-50 px-2 py-1 text-xs rounded bg-discord-darker text-discord-text;
+  @apply transition-opacity duration-200;
+}
+
+.has-tooltip:hover .tooltip {
+  @apply visible opacity-100;
+}
