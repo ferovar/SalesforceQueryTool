@@ -24,6 +24,34 @@ const QueryBuilder: React.FC<QueryBuilderProps> = ({
   const [selectedFields, setSelectedFields] = useState<Set<string>>(new Set());
   const [fieldSearch, setFieldSearch] = useState('');
 
+  // Parse fields from current query
+  const parseFieldsFromQuery = (queryStr: string): Set<string> => {
+    const fields = new Set<string>();
+    
+    // Match SELECT ... FROM pattern (case insensitive)
+    const selectMatch = queryStr.match(/SELECT\s+([\s\S]*?)\s+FROM\s+/i);
+    if (selectMatch) {
+      const fieldsStr = selectMatch[1];
+      // Split by comma, trim whitespace, handle newlines
+      const fieldNames = fieldsStr.split(',').map(f => f.trim()).filter(f => f);
+      fieldNames.forEach(field => {
+        // Handle field names (ignore aliases if any, just take the field name)
+        const cleanField = field.split(/\s+/)[0];
+        fields.add(cleanField);
+      });
+    }
+    
+    return fields;
+  };
+
+  // When opening field picker, pre-select fields from current query
+  const handleOpenFieldPicker = () => {
+    const currentFields = parseFieldsFromQuery(query);
+    setSelectedFields(currentFields);
+    setFieldSearch('');
+    setShowFieldPicker(true);
+  };
+
   const filteredFields = objectDescription?.fields.filter(
     (field) =>
       field.name.toLowerCase().includes(fieldSearch.toLowerCase()) ||
@@ -54,7 +82,12 @@ const QueryBuilder: React.FC<QueryBuilderProps> = ({
     if (selectedFields.size === 0) return;
 
     const fieldsStr = Array.from(selectedFields).join(', ');
-    const newQuery = `SELECT ${fieldsStr}\nFROM ${selectedObject.name}\nLIMIT 100`;
+    
+    // Try to preserve the rest of the query (FROM clause, WHERE, ORDER BY, LIMIT, etc.)
+    const fromMatch = query.match(/\s+FROM\s+[\s\S]*/i);
+    const restOfQuery = fromMatch ? fromMatch[0] : `\nFROM ${selectedObject.name}\nLIMIT 100`;
+    
+    const newQuery = `SELECT ${fieldsStr}${restOfQuery}`;
     onQueryChange(newQuery);
     setShowFieldPicker(false);
   };
@@ -101,7 +134,7 @@ const QueryBuilder: React.FC<QueryBuilderProps> = ({
 
         <div className="flex items-center gap-2">
           <button
-            onClick={() => setShowFieldPicker(!showFieldPicker)}
+            onClick={handleOpenFieldPicker}
             disabled={isLoading}
             className="btn btn-secondary text-sm flex items-center gap-2"
           >
