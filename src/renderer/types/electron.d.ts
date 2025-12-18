@@ -37,6 +37,13 @@ export interface ElectronAPI {
     getSavedOAuthLogins: () => Promise<SavedOAuthLogin[]>;
     deleteOAuthLogin: (id: string) => Promise<{ success: boolean }>;
   };
+
+  queries: {
+    save: (objectName: string, name: string, query: string) => Promise<{ success: boolean; data?: SavedQuery; error?: string }>;
+    getForObject: (objectName: string) => Promise<SavedQuery[]>;
+    delete: (queryId: string) => Promise<{ success: boolean }>;
+    updateLastRun: (queryId: string) => Promise<{ success: boolean }>;
+  };
 }
 
 export interface SalesforceObject {
@@ -90,6 +97,15 @@ export interface SavedOAuthLogin {
   isSandbox: boolean;
   lastUsed: string;
   loginType: 'oauth';
+}
+
+export interface SavedQuery {
+  id: string;
+  name: string;
+  query: string;
+  objectName: string;
+  createdAt: string;
+  lastRunAt: string | null;
 }
 
 declare global {

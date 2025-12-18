@@ -2,11 +2,13 @@ import { app, BrowserWindow, ipcMain } from 'electron';
 import * as path from 'path';
 import { SalesforceService } from './services/salesforce';
 import { CredentialsStore } from './services/credentials';
+import { QueriesStore } from './services/queries';
 
 let mainWindow: BrowserWindow | null = null;
 let splashWindow: BrowserWindow | null = null;
 const salesforceService = new SalesforceService();
 const credentialsStore = new CredentialsStore();
+const queriesStore = new QueriesStore();
 
 const isDev = process.env.NODE_ENV === 'development' || !app.isPackaged;
 
@@ -273,5 +275,29 @@ ipcMain.handle('credentials:getSavedOAuthLogins', () => {
 
 ipcMain.handle('credentials:deleteOAuthLogin', (_event, id: string) => {
   credentialsStore.deleteOAuthLogin(id);
+  return { success: true };
+});
+
+// IPC Handlers for saved queries
+ipcMain.handle('queries:save', (_event, objectName: string, name: string, query: string) => {
+  try {
+    const savedQuery = queriesStore.saveQuery(objectName, name, query);
+    return { success: true, data: savedQuery };
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('queries:getForObject', (_event, objectName: string) => {
+  return queriesStore.getQueriesForObject(objectName);
+});
+
+ipcMain.handle('queries:delete', (_event, queryId: string) => {
+  queriesStore.deleteQuery(queryId);
+  return { success: true };
+});
+
+ipcMain.handle('queries:updateLastRun', (_event, queryId: string) => {
+  queriesStore.updateLastRunAt(queryId);
   return { success: true };
 });

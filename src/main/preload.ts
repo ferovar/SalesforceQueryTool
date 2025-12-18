@@ -48,4 +48,13 @@ contextBridge.exposeInMainWorld('electronAPI', {
     getSavedOAuthLogins: () => ipcRenderer.invoke('credentials:getSavedOAuthLogins'),
     deleteOAuthLogin: (id: string) => ipcRenderer.invoke('credentials:deleteOAuthLogin', id),
   },
+
+  // Saved queries management
+  queries: {
+    save: (objectName: string, name: string, query: string) => 
+      ipcRenderer.invoke('queries:save', objectName, name, query),
+    getForObject: (objectName: string) => ipcRenderer.invoke('queries:getForObject', objectName),
+    delete: (queryId: string) => ipcRenderer.invoke('queries:delete', queryId),
+    updateLastRun: (queryId: string) => ipcRenderer.invoke('queries:updateLastRun', queryId),
+  },
 });
