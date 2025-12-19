@@ -241,6 +241,11 @@ export class DataMigrationService {
       // Now process this record
       processedIds.add(record.Id);
 
+      // Skip RecordType objects - they are mapped by DeveloperName, not inserted
+      if (objectName === 'RecordType') {
+        return;
+      }
+
       // Add object to order if not already there
       if (!objectOrder.includes(objectName)) {
         objectOrder.push(objectName);
