@@ -4,6 +4,8 @@ export interface ElectronAPI {
   closeWindow: () => Promise<void>;
   isMaximized: () => Promise<boolean>;
   
+  getPerformanceData: () => Promise<{ heapUsed: number; heapTotal: number; external: number; uptime: number }>;
+  
   salesforce: {
     login: (credentials: {
       username: string;

@@ -5,12 +5,15 @@ import ObjectList from '../components/ObjectList';
 import QueryBuilder from '../components/QueryBuilder';
 import ResultsTable from '../components/ResultsTable';
 import QueryHistory from '../components/QueryHistory';
+import { useSettings } from '../contexts/SettingsContext';
 
 interface MainPageProps {
   session: UserSession;
+  onOpenSettings: () => void;
 }
 
-const MainPage: React.FC<MainPageProps> = ({ session }) => {
+const MainPage: React.FC<MainPageProps> = ({ session, onOpenSettings }) => {
+  const { settings, isProduction } = useSettings();
   const [objects, setObjects] = useState<SalesforceObject[]>([]);
   const [selectedObject, setSelectedObject] = useState<SalesforceObject | null>(null);
   const [objectDescription, setObjectDescription] = useState<ObjectDescription | null>(null);
@@ -60,7 +63,10 @@ const MainPage: React.FC<MainPageProps> = ({ session }) => {
           .slice(0, 10)
           .map((f: SalesforceField) => f.name)
           .join(', ');
-        setQuery(`SELECT ${defaultFields}\nFROM ${obj.name}\nLIMIT 100`);
+        const limitClause = settings.defaultQueryLimit > 0 
+          ? `\nLIMIT ${settings.defaultQueryLimit}` 
+          : '';
+        setQuery(`SELECT ${defaultFields}\nFROM ${obj.name}${limitClause}`);
       } else {
         console.error('Failed to describe object:', result.error);
       }
@@ -190,6 +196,12 @@ const MainPage: React.FC<MainPageProps> = ({ session }) => {
                 totalRecords={totalRecords}
                 onExportCsv={handleExportCsv}
                 objectDescription={objectDescription}
+                disableEditing={settings.preventProductionEdits && isProduction === true}
+                editingDisabledReason={
+                  settings.preventProductionEdits && isProduction === true
+                    ? 'Inline editing disabled for production'
+                    : undefined
+                }
                 onRecordUpdate={(recordId, field, newValue) => {
                   // Update local results to reflect the change
                   setQueryResults(prev => {
@@ -244,6 +256,19 @@ const MainPage: React.FC<MainPageProps> = ({ session }) => {
       >
         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+      </button>
+
+      {/* Settings Floating Button */}
+      <button
+        onClick={onOpenSettings}
+        className="absolute bottom-4 right-4 p-3 rounded-full bg-discord-dark hover:bg-discord-light border border-discord-lighter shadow-lg transition-all z-10 group"
+        style={{ right: showHistory ? 'calc(320px + 16px)' : '16px' }}
+        title="Settings"
+      >
+        <svg className="w-5 h-5 text-discord-text-muted group-hover:text-discord-text transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
         </svg>
       </button>
     </div>

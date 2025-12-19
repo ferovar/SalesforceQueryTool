@@ -9,6 +9,8 @@ interface ResultsTableProps {
   onExportCsv: () => void;
   objectDescription: ObjectDescription | null;
   onRecordUpdate?: (recordId: string, field: string, newValue: any) => void;
+  disableEditing?: boolean;
+  editingDisabledReason?: string;
 }
 
 interface EditingCell {
@@ -32,6 +34,8 @@ const ResultsTable: React.FC<ResultsTableProps> = ({
   onExportCsv,
   objectDescription,
   onRecordUpdate,
+  disableEditing = false,
+  editingDisabledReason,
 }) => {
   const [sortColumn, setSortColumn] = useState<string | null>(null);
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
@@ -172,6 +176,7 @@ const ResultsTable: React.FC<ResultsTableProps> = ({
 
   // Handle cell click to start editing
   const handleCellClick = (recordId: string, column: string, currentValue: any) => {
+    if (disableEditing) return; // Editing is disabled globally
     if (!isFieldEditable(column)) return;
     if (!recordId) return; // Can't edit without an Id
     
@@ -410,9 +415,17 @@ const ResultsTable: React.FC<ResultsTableProps> = ({
           <span className="text-sm text-discord-text-muted">
             {totalRecords.toLocaleString()} record{totalRecords !== 1 ? 's' : ''}
           </span>
-          {objectDescription && (
+          {objectDescription && !disableEditing && (
             <span className="text-xs text-discord-text-muted bg-discord-lighter px-2 py-0.5 rounded">
-              Click editable cells to edit inline
+              Double-click editable cells to edit inline
+            </span>
+          )}
+          {objectDescription && disableEditing && editingDisabledReason && (
+            <span className="text-xs text-discord-warning bg-discord-warning/10 px-2 py-0.5 rounded flex items-center gap-1">
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+              </svg>
+              {editingDisabledReason}
             </span>
           )}
         </div>
@@ -437,7 +450,7 @@ const ResultsTable: React.FC<ResultsTableProps> = ({
             <tr>
               <th className="w-12 text-center">#</th>
               {columns.map((column) => {
-                const isEditable = isFieldEditable(column);
+                const canEdit = !disableEditing && isFieldEditable(column);
                 return (
                   <th
                     key={column}
@@ -446,7 +459,7 @@ const ResultsTable: React.FC<ResultsTableProps> = ({
                   >
                     <div className="flex items-center gap-1">
                       <span className="truncate">{column}</span>
-                      {isEditable && (
+                      {canEdit && (
                         <svg className="w-3 h-3 text-discord-text-muted flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
                         </svg>
@@ -476,7 +489,7 @@ const ResultsTable: React.FC<ResultsTableProps> = ({
                   {index + 1}
                 </td>
                 {columns.map((column) => {
-                  const isEditable = isFieldEditable(column) && record.Id;
+                  const canEdit = !disableEditing && isFieldEditable(column) && record.Id;
                   const isEditing = editingCell?.recordId === record.Id && editingCell?.column === column;
                   const cellError = getCellError(record.Id, column);
                   const statusClass = getCellStatusClass(record.Id, column);
@@ -485,9 +498,9 @@ const ResultsTable: React.FC<ResultsTableProps> = ({
                     <td 
                       key={column} 
                       className={`max-w-xs relative ${statusClass} ${
-                        isEditable ? 'cursor-pointer hover:bg-discord-light' : ''
+                        canEdit ? 'cursor-pointer hover:bg-discord-light' : ''
                       }`}
-                      onClick={() => !isEditing && isEditable && handleCellClick(record.Id, column, record[column])}
+                      onDoubleClick={() => !isEditing && canEdit && handleCellClick(record.Id, column, record[column])}
                       title={cellError || formatValue(record[column])}
                     >
                       {isEditing ? (

@@ -9,6 +9,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   closeWindow: () => ipcRenderer.invoke('window:close'),
   isMaximized: () => ipcRenderer.invoke('window:isMaximized'),
 
+  // Performance data
+  getPerformanceData: () => ipcRenderer.invoke('app:getPerformanceData'),
+
   // Salesforce operations
   salesforce: {
     login: (credentials: {

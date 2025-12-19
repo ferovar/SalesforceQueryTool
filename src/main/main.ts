@@ -135,6 +135,17 @@ ipcMain.handle('window:isMaximized', () => {
   return mainWindow?.isMaximized() ?? false;
 });
 
+// IPC Handler for performance data
+ipcMain.handle('app:getPerformanceData', () => {
+  const memUsage = process.memoryUsage();
+  return {
+    heapUsed: memUsage.heapUsed,
+    heapTotal: memUsage.heapTotal,
+    external: memUsage.external,
+    uptime: process.uptime(),
+  };
+});
+
 // IPC Handlers for Salesforce operations
 ipcMain.handle('salesforce:login', async (_event, credentials: {
   label: string;
