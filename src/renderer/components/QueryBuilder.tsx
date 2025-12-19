@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import type { SalesforceObject, ObjectDescription, SalesforceField, SavedQuery } from '../types/electron.d';
+import SoqlHighlighter from './SoqlHighlighter';
 
 interface QueryBuilderProps {
   selectedObject: SalesforceObject;
@@ -795,16 +796,21 @@ const QueryBuilder: React.FC<QueryBuilderProps> = ({
         <label className="block text-sm font-medium text-discord-text-muted mb-2">
           SOQL Query
         </label>
-        <textarea
-          ref={textareaRef}
-          value={query}
-          onChange={handleQueryInputChange}
-          onKeyDown={handleKeyDown}
-          placeholder="SELECT Id, Name FROM Account LIMIT 100"
-          className="query-editor w-full"
-          rows={6}
-          spellCheck={false}
-        />
+        <div className="relative">
+          {/* Syntax highlighting layer */}
+          <SoqlHighlighter query={query} />
+          {/* Transparent textarea on top */}
+          <textarea
+            ref={textareaRef}
+            value={query}
+            onChange={handleQueryInputChange}
+            onKeyDown={handleKeyDown}
+            placeholder="SELECT Id, Name FROM Account LIMIT 100"
+            className="query-editor query-editor-transparent w-full"
+            rows={6}
+            spellCheck={false}
+          />
+        </div>
         
         {/* Autocomplete Dropdown */}
         {autocomplete.isVisible && autocomplete.suggestions.length > 0 && (

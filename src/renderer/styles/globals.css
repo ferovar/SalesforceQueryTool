@@ -140,6 +140,30 @@ input:focus, textarea:focus, select:focus {
   @apply border border-discord-light focus:border-discord-accent;
   min-height: 150px;
   resize: vertical;
+  position: relative;
+}
+
+/* Transparent textarea overlay for syntax highlighting */
+.query-editor-transparent {
+  background: transparent !important;
+  color: transparent;
+  caret-color: #fff;
+  position: relative;
+  z-index: 1;
+}
+
+.query-editor-transparent::placeholder {
+  color: #72767d;
+}
+
+/* Syntax highlighting layer */
+.soql-highlight-layer {
+  @apply font-mono text-sm p-4;
+  margin: 0;
+  z-index: 0;
+  line-height: 1.5;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
 }
 
 /* Button variants */
