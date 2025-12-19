@@ -122,9 +122,24 @@ const RecordMigrationModal: React.FC<RecordMigrationModalProps> = ({
       const result = await window.electronAPI.migration.getRelationships(objectName);
       if (result.success && result.data) {
         setRelationships(result.data.relationships);
-        setRelationshipConfig(result.data.defaultConfig);
         setExcludedFields(result.data.excludedFields);
         setExcludedObjects(result.data.excludedObjects);
+        
+        // Auto-deselect fields that are blank for all selected records
+        const configWithAutoDeselect = result.data.defaultConfig.map(config => {
+          // Check if this field is blank across all selected records
+          const allBlank = selectedRecords.every(record => {
+            const value = record[config.fieldName];
+            return value === null || value === undefined || value === '';
+          });
+          
+          return {
+            ...config,
+            include: allBlank ? false : config.include
+          };
+        });
+        
+        setRelationshipConfig(configWithAutoDeselect);
       }
     } catch (err) {
       console.error('Error loading relationships:', err);
@@ -134,6 +149,7 @@ const RecordMigrationModal: React.FC<RecordMigrationModalProps> = ({
   };
 
   const handleConnectWithSavedConnection = async (savedConnection: UnifiedSavedConnection) => {
+    setSelectedSavedConnection(savedConnection);
     setIsConnecting(true);
     setConnectionError(null);
 
@@ -372,7 +388,18 @@ const RecordMigrationModal: React.FC<RecordMigrationModalProps> = ({
                     {targetOrgs.length > 0 ? 'Or select from saved connections' : 'Saved Connections'}
                   </label>
                   
-                  {savedConnections.length === 0 ? (
+                  {/* Filter out connections that match the current source org */}
+                  {savedConnections.filter(c => !sourceOrgUrl.includes(c.username.split('@')[0]) && !sourceOrgUrl.toLowerCase().includes(c.label.toLowerCase())).length === 0 && savedConnections.length > 0 ? (
+                    <div className="p-6 bg-discord-medium rounded-lg border border-discord-darker text-center">
+                      <svg className="w-12 h-12 mx-auto text-discord-text-muted mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                      </svg>
+                      <p className="text-discord-text mb-2">No other connections available</p>
+                      <p className="text-sm text-discord-text-muted">
+                        All saved connections match your current org. Log in to other Salesforce orgs to use them here.
+                      </p>
+                    </div>
+                  ) : savedConnections.length === 0 ? (
                     <div className="p-6 bg-discord-medium rounded-lg border border-discord-darker text-center">
                       <svg className="w-12 h-12 mx-auto text-discord-text-muted mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
@@ -384,21 +411,34 @@ const RecordMigrationModal: React.FC<RecordMigrationModalProps> = ({
                     </div>
                   ) : (
                     <div className="space-y-2">
-                      {savedConnections.map(connection => (
+                      {savedConnections
+                        .filter(connection => {
+                          // Filter out the current source org
+                          const sourceUrlLower = sourceOrgUrl.toLowerCase();
+                          const labelLower = connection.label.toLowerCase();
+                          const usernameLower = connection.username.toLowerCase();
+                          // Check if this connection matches the source org
+                          return !sourceUrlLower.includes(usernameLower.split('@')[0]) && 
+                                 !sourceUrlLower.includes(labelLower.replace(/\s+/g, ''));
+                        })
+                        .map(connection => (
                         <div 
                           key={connection.id}
                           className={`flex items-center justify-between p-3 rounded-lg border cursor-pointer transition-colors ${
-                            selectedSavedConnection?.id === connection.id
-                              ? 'bg-discord-accent/20 border-discord-accent'
-                              : 'bg-discord-medium border-discord-darker hover:border-discord-muted'
+                            isConnecting
+                              ? 'opacity-50 cursor-not-allowed bg-discord-medium border-discord-darker'
+                              : 'bg-discord-medium border-discord-darker hover:border-discord-accent hover:bg-discord-accent/10'
                           }`}
-                          onClick={() => setSelectedSavedConnection(connection)}
+                          onClick={() => !isConnecting && handleConnectWithSavedConnection(connection)}
                         >
                           <div>
                             <div className="text-white font-medium">{connection.label}</div>
                             <div className="text-sm text-discord-text-muted">{connection.username}</div>
                           </div>
                           <div className="flex items-center gap-2">
+                            {isConnecting && selectedSavedConnection?.id === connection.id && (
+                              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-discord-accent"></div>
+                            )}
                             <span className={`px-2 py-0.5 text-xs rounded ${
                               connection.loginType === 'oauth' ? 'bg-blue-500/20 text-blue-400' : 'bg-purple-500/20 text-purple-400'
                             }`}>
@@ -412,16 +452,6 @@ const RecordMigrationModal: React.FC<RecordMigrationModalProps> = ({
                           </div>
                         </div>
                       ))}
-                      
-                      {selectedSavedConnection && (
-                        <button
-                          onClick={() => handleConnectWithSavedConnection(selectedSavedConnection)}
-                          disabled={isConnecting}
-                          className="w-full mt-4 py-2 bg-discord-accent hover:bg-discord-accent-hover disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-md transition-colors font-medium"
-                        >
-                          {isConnecting ? 'Connecting...' : `Connect to ${selectedSavedConnection.label}`}
-                        </button>
-                      )}
                     </div>
                   )}
                 </div>
@@ -457,14 +487,21 @@ const RecordMigrationModal: React.FC<RecordMigrationModalProps> = ({
                       const isExcludedObject = rel.referenceTo.every(obj => excludedObjects.includes(obj));
                       const isAutoExcluded = isExcludedField || isExcludedObject;
 
+                      // Check if this field is blank for all selected records
+                      const allBlank = selectedRecords.every(record => {
+                        const value = record[config.fieldName];
+                        return value === null || value === undefined || value === '';
+                      });
+
                       return (
                         <div 
                           key={config.fieldName}
-                          className={`flex items-center justify-between p-4 rounded-lg border ${
+                          className={`flex items-center justify-between p-4 rounded-lg border cursor-pointer transition-colors ${
                             config.include 
                               ? 'bg-discord-accent/10 border-discord-accent/30' 
-                              : 'bg-discord-medium border-discord-darker'
-                          } ${isAutoExcluded ? 'opacity-60' : ''}`}
+                              : 'bg-discord-medium border-discord-darker hover:border-discord-muted'
+                          } ${isAutoExcluded ? 'opacity-60 cursor-not-allowed' : ''}`}
+                          onClick={() => !isAutoExcluded && handleRelationshipToggle(config.fieldName)}
                         >
                           <div className="flex items-center gap-3">
                             <input
@@ -472,7 +509,7 @@ const RecordMigrationModal: React.FC<RecordMigrationModalProps> = ({
                               checked={config.include}
                               onChange={() => handleRelationshipToggle(config.fieldName)}
                               disabled={isAutoExcluded}
-                              className="w-4 h-4 rounded border-discord-darker bg-discord-dark text-discord-accent focus:ring-discord-accent"
+                              className="w-4 h-4 rounded border-discord-darker bg-discord-dark text-discord-accent focus:ring-discord-accent pointer-events-none"
                             />
                             <div>
                               <div className="text-white font-medium">{rel.fieldLabel}</div>
@@ -484,6 +521,11 @@ const RecordMigrationModal: React.FC<RecordMigrationModalProps> = ({
                                   {isExcludedField 
                                     ? 'System field - excluded by default' 
                                     : 'References excluded object type'}
+                                </div>
+                              )}
+                              {allBlank && !isAutoExcluded && (
+                                <div className="text-xs text-discord-text-muted mt-1">
+                                  Empty for all selected records
                                 </div>
                               )}
                             </div>
