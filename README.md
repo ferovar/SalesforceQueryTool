@@ -1,157 +1,237 @@
-# Salesforce Query Tool
+<div align="center">
 
-A modern, Discord-inspired desktop application for querying Salesforce data. Built with Electron, React, and TypeScript.
+# ✨ Salesforce Query Tool ✨
 
-**[🌐 Visit the Website](https://ferovar.github.io/SalesforceQueryTool/)** | **[📥 Download Latest Release](https://github.com/ferovar/SalesforceQueryTool/releases/latest)**
+### *Navigate your Salesforce data at warp speed*
+
+<br/>
+
+A modern, Discord-inspired desktop application for querying, exploring, and migrating Salesforce data.  
+Built with Electron, React, and TypeScript.
+
+<br/>
+
+**[🌐 Visit the Website](https://ferovar.github.io/SalesforceQueryTool/)** • **[📥 Download Latest Release](https://github.com/ferovar/SalesforceQueryTool/releases/latest)** • **[🐛 Report a Bug](https://github.com/ferovar/SalesforceQueryTool/issues)**
+
+<br/>
 
 ![Salesforce Query Tool](docs/screenshot.png)
 
-## Features
+---
 
-- 🎨 **Modern Dark Theme** - Discord-inspired UI for comfortable extended use
-- 🔐 **Secure Authentication** - Login with username/password or OAuth
-- 💾 **Saved Credentials** - Securely store and manage multiple logins
-- 🏢 **Multi-Environment** - Support for both Production and Sandbox orgs
-- 📋 **Object Browser** - Browse and search all Salesforce objects
-- 🔍 **Query Builder** - Visual field selection and SOQL editing
-- 💾 **Saved Queries** - Save and manage queries per object
-- 📊 **Results Table** - Sortable, scrollable data grid
-- 📥 **CSV Export** - Export query results with one click
-- 🗑️ **Include Deleted** - Query deleted records (queryAll)
+</div>
 
-## Getting Started
+## 🌟 Features
+
+### Core Functionality
+| Feature | Description |
+|---------|-------------|
+| 🔐 **Dual Authentication** | Login with Username/Password + Security Token or OAuth 2.0 |
+| 💾 **Credential Manager** | Securely store and manage multiple org connections |
+| 🏢 **Multi-Environment** | Seamless switching between Production and Sandbox orgs |
+| 📋 **Smart Object Browser** | Browse, search, and filter all standard & custom objects |
+| 🔍 **Visual Query Builder** | Point-and-click field selection with SOQL editor |
+| ✏️ **Inline Editing** | Edit records directly in the results table |
+| 🗑️ **Recycle Bin Access** | Query and restore deleted records (queryAll) |
+
+### Data Management
+| Feature | Description |
+|---------|-------------|
+| 📊 **Advanced Results Table** | Sortable columns, row selection, and pagination |
+| 📥 **CSV Export** | One-click export of query results |
+| 💾 **Saved Queries** | Save frequently used queries per object |
+| 📋 **Copy Query** | Quickly copy SOQL to clipboard |
+| ⏱️ **Recent Objects** | Quick access to recently queried objects |
+
+### Migration Tools *(Beta)*
+| Feature | Description |
+|---------|-------------|
+| 🚀 **Multi-Org Migration** | Push records to multiple target orgs simultaneously |
+| 🔗 **Relationship Mapping** | Match lookup fields by ID or External ID |
+| 📝 **RecordType Mapping** | Automatic RecordType name-to-ID conversion |
+| ✅ **Field Selection** | Choose which fields to include in migration |
+
+### User Experience
+| Feature | Description |
+|---------|-------------|
+| 🎨 **Discord Dark Theme** | Modern UI designed for extended use |
+| ⚡ **Blazing Fast** | Optimized for large datasets |
+| 🔒 **Production Warnings** | Visual indicators when connected to production |
+| ⚙️ **Customizable Settings** | Toggle features like inline editing, migration, and more |
+
+---
+
+## 🚀 Getting Started
 
 ### Prerequisites
 
 - [Node.js](https://nodejs.org/) (v18 or later)
 - npm or yarn
 
-### Installation
+### Quick Start
 
-1. Clone the repository:
 ```bash
+# Clone the repository
 git clone https://github.com/ferovar/SalesforceQueryTool.git
 cd SalesforceQueryTool
-```
 
-2. Install dependencies:
-```bash
+# Install dependencies
 npm install
-```
 
-3. Start the development server:
-```bash
+# Start development server
 npm run dev
 ```
 
 ### Building for Production
 
-To create a Windows executable:
-
 ```bash
+# Create Windows executable
 npm run package
 ```
 
 The installer will be created in the `release` folder.
 
-## Project Structure
+---
+
+## 📖 Usage Guide
+
+### 🔑 Logging In
+
+1. Select your environment (**Production** or **Sandbox**)
+2. Choose your login method:
+   - **Username & Password**: Enter credentials + security token
+   - **OAuth**: Browser-based authentication (requires Connected App)
+3. Optionally save credentials for quick access
+
+### 🔍 Querying Data
+
+1. **Browse** or **search** for an object in the sidebar
+2. Click an object to load its fields
+3. Use the **Fields** button to select columns
+4. Modify the SOQL query as needed
+5. Click **Run Query** to execute
+6. Toggle **Include Deleted** to query recycle bin
+
+### ✏️ Editing Records
+
+1. Run a query to display results
+2. Double-click any editable cell
+3. Make your changes and press **Enter** to save
+4. Changes sync directly to Salesforce
+
+### 🚀 Migrating Records *(Beta)*
+
+1. Select records using the checkboxes
+2. Click **Push to Another Org**
+3. Select one or more target orgs
+4. Configure field mappings and relationships
+5. Click **Migrate** to transfer records
+
+---
+
+## 🔐 Security
+
+| Protection | Implementation |
+|------------|----------------|
+| 🔒 **Encrypted Storage** | AES-256-CBC encryption for saved credentials |
+| 🔑 **Per-User Keys** | Encryption keys stored at the user level |
+| 🚫 **No Telemetry** | Zero data sent to third parties |
+| ✅ **Official APIs** | All communication via Salesforce REST API |
+
+---
+
+## 🛠️ Tech Stack
+
+<div align="center">
+
+| Layer | Technology |
+|-------|------------|
+| **Framework** | Electron |
+| **Frontend** | React + TypeScript |
+| **Build Tool** | Vite |
+| **Styling** | Tailwind CSS |
+| **Salesforce API** | jsforce |
+| **Storage** | electron-store |
+| **Packaging** | electron-builder |
+| **Testing** | Jest + React Testing Library |
+
+</div>
+
+---
+
+## 📁 Project Structure
 
 ```
 SalesforceQueryTool/
 ├── src/
-│   ├── main/                 # Electron main process
-│   │   ├── main.ts          # Main entry point
-│   │   ├── preload.ts       # Preload script for IPC
-│   │   └── services/        # Backend services
-│   │       ├── salesforce.ts    # Salesforce API integration
-│   │       └── credentials.ts   # Secure credential storage
+│   ├── main/                    # Electron main process
+│   │   ├── main.ts              # Entry point & IPC handlers
+│   │   ├── preload.ts           # Secure bridge to renderer
+│   │   └── services/            # Backend services
+│   │       ├── salesforce.ts    # SF API integration
+│   │       ├── credentials.ts   # Credential encryption
+│   │       └── orgConnectionManager.ts  # Multi-org connections
 │   │
-│   └── renderer/            # React frontend
-│       ├── index.html       # Main HTML
-│       ├── splash.html      # Splash screen
-│       ├── main.tsx         # React entry point
-│       ├── App.tsx          # Main app component
-│       ├── components/      # Reusable components
-│       │   ├── TitleBar.tsx
-│       │   ├── ObjectList.tsx
-│       │   ├── QueryBuilder.tsx
-│       │   └── ResultsTable.tsx
-│       ├── pages/           # Page components
-│       │   ├── LoginPage.tsx
-│       │   └── MainPage.tsx
-│       ├── styles/          # CSS styles
-│       │   └── globals.css
-│       └── types/           # TypeScript definitions
-│           └── electron.d.ts
+│   └── renderer/                # React frontend
+│       ├── components/          # UI components
+│       ├── pages/               # Page layouts
+│       ├── contexts/            # React contexts
+│       ├── styles/              # Tailwind & global CSS
+│       └── types/               # TypeScript definitions
 │
-├── assets/                  # App icons and assets
-├── package.json
-├── tsconfig.json           # TypeScript config (renderer)
-├── tsconfig.main.json      # TypeScript config (main)
-├── vite.config.ts          # Vite configuration
-├── tailwind.config.js      # Tailwind CSS configuration
-└── postcss.config.js       # PostCSS configuration
+├── assets/                      # Icons and images
+└── docs/                        # Documentation & screenshots
 ```
 
-## Usage
+---
 
-### Logging In
+## 🗺️ Roadmap
 
-1. Select your environment (Production or Sandbox)
-2. Choose your login method:
-   - **Username & Password**: Enter your Salesforce credentials and security token
-   - **OAuth**: Opens a browser window for Salesforce authentication (requires Connected App setup)
-3. Optionally save your credentials for future logins
+### Coming Soon
+- [ ] macOS and Linux builds
+- [ ] Query history with search
+- [ ] Dark/Light theme toggle
+- [ ] Bulk delete operations
+- [ ] Schema visualization
 
-### Querying Data
+### Under Consideration
+- [ ] SOQL query templates
+- [ ] Apex execute anonymous
+- [ ] Metadata deployment
+- [ ] Custom report builder
 
-1. Browse or search for an object in the left sidebar
-2. Click an object to load its fields
-3. Use the "Fields" button to select which fields to include
-4. Modify the SOQL query as needed
-5. Click "Run Query" to execute
-6. Use "Include Deleted" to also retrieve deleted records
+---
 
-### Exporting Data
-
-1. After running a query, click "Export CSV"
-2. Choose a location to save the file
-3. The file will open in your default CSV application
-
-## Security
-
-- Credentials are encrypted using AES-256-CBC before storage
-- Encryption keys are stored per-user
-- No data is sent to third parties
-- All Salesforce communication uses official APIs
-
-## OAuth Setup (Optional)
-
-To use OAuth authentication, you need to create a Connected App in Salesforce:
-
-1. Go to Setup > App Manager > New Connected App
-2. Configure OAuth settings with appropriate scopes
-3. Update the client ID in the application
-
-## Tech Stack
-
-- **Electron** - Desktop application framework
-- **React** - UI library
-- **TypeScript** - Type-safe JavaScript
-- **Vite** - Build tool and dev server
-- **Tailwind CSS** - Utility-first styling
-- **jsforce** - Salesforce API library
-- **electron-store** - Secure local storage
-- **electron-builder** - Application packaging
-
-## Contributing
+## 🤝 Contributing
 
 Contributions are welcome! Please feel free to submit a Pull Request.
 
-## License
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
+3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
+4. Push to the branch (`git push origin feature/AmazingFeature`)
+5. Open a Pull Request
+
+---
+
+## 📄 License
 
 MIT License - see [LICENSE](LICENSE) for details.
 
-## Acknowledgments
+---
 
-Inspired by [SoqlX](https://github.com/superfell/SoqlX) - a fantastic Mac-only Salesforce query tool.
+<div align="center">
+
+## 💫 Acknowledgments
+
+*Inspired by [SoqlX](https://github.com/superfell/SoqlX) - a fantastic Mac-only Salesforce query tool.*
+
+<br/>
+
+**Made with ☕ and ✨ for the Salesforce community**
+
+<br/>
+
+⭐ Star this repo if you find it useful! ⭐
+
+</div>

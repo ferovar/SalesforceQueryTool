@@ -521,15 +521,22 @@ const ResultsTable: React.FC<ResultsTableProps> = ({
         </div>
 
         <div className="flex items-center gap-2">
-          {selectedRecords.size > 0 && !settings.disableMigrationFeature && (
+          {!settings.disableMigrationFeature && (
             <button
               onClick={() => setShowMigrationModal(true)}
-              className="btn btn-primary text-sm flex items-center gap-2"
+              disabled={selectedRecords.size === 0}
+              className={`btn text-sm flex items-center gap-2 ${
+                selectedRecords.size > 0 
+                  ? 'btn-primary' 
+                  : 'bg-discord-light text-discord-text-muted cursor-not-allowed opacity-50'
+              }`}
+              title={selectedRecords.size === 0 ? 'Select records to migrate' : undefined}
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
               </svg>
-              Push to Another Org
+              Migrate
+              <span className="px-1.5 py-0.5 text-[10px] font-semibold bg-discord-warning/20 text-discord-warning rounded">BETA</span>
             </button>
           )}
           <button

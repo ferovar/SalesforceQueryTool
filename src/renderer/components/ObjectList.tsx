@@ -28,10 +28,18 @@ const ObjectList: React.FC<ObjectListProps> = ({
     try {
       const saved = localStorage.getItem(RECENT_OBJECTS_KEY);
       if (saved) {
-        setRecentObjects(JSON.parse(saved));
+        const parsed = JSON.parse(saved);
+        // Validate it's an array of strings
+        if (Array.isArray(parsed) && parsed.every(item => typeof item === 'string')) {
+          setRecentObjects(parsed);
+        } else {
+          // Reset if corrupted
+          localStorage.removeItem(RECENT_OBJECTS_KEY);
+        }
       }
     } catch (e) {
       console.error('Error loading recent objects:', e);
+      localStorage.removeItem(RECENT_OBJECTS_KEY);
     }
   }, []);
 
@@ -48,8 +56,9 @@ const ObjectList: React.FC<ObjectListProps> = ({
     onSelectObject(obj);
   };
 
+  // Computed: filter and optionally sort objects
   const filteredObjects = useMemo(() => {
-    let filtered = objects;
+    let filtered = [...objects]; // Create a copy to avoid mutating
 
     if (showCustomOnly) {
       filtered = filtered.filter((obj) => obj.custom);
@@ -64,10 +73,10 @@ const ObjectList: React.FC<ObjectListProps> = ({
       );
     }
 
-    // Sort with recent objects first if enabled
+    // Sort with recent objects first if enabled (only when not searching)
     if (settings.showRecentObjectsFirst && recentObjects.length > 0 && !searchTerm) {
       const recentSet = new Set(recentObjects);
-      filtered = [...filtered].sort((a, b) => {
+      filtered.sort((a, b) => {
         const aIsRecent = recentSet.has(a.name);
         const bIsRecent = recentSet.has(b.name);
         if (aIsRecent && !bIsRecent) return -1;
@@ -81,6 +90,20 @@ const ObjectList: React.FC<ObjectListProps> = ({
 
     return filtered;
   }, [objects, searchTerm, showCustomOnly, settings.showRecentObjectsFirst, recentObjects]);
+
+  // Compute the index where recent objects end (for separator)
+  const recentObjectsEndIndex = useMemo(() => {
+    if (!settings.showRecentObjectsFirst || searchTerm || recentObjects.length === 0) {
+      return -1;
+    }
+    const recentSet = new Set(recentObjects);
+    for (let i = 0; i < filteredObjects.length; i++) {
+      if (!recentSet.has(filteredObjects[i].name)) {
+        return i;
+      }
+    }
+    return filteredObjects.length; // All objects are recent
+  }, [filteredObjects, settings.showRecentObjectsFirst, searchTerm, recentObjects]);
 
   return (
     <div className="h-full flex flex-col">
@@ -182,15 +205,12 @@ const ObjectList: React.FC<ObjectListProps> = ({
         ) : (
           <div className="p-2">
             {filteredObjects.map((obj, index) => {
-              const isRecent = settings.showRecentObjectsFirst && recentObjects.includes(obj.name) && !searchTerm;
-              const isFirstNonRecent = settings.showRecentObjectsFirst && !searchTerm && 
-                index > 0 && 
-                recentObjects.includes(filteredObjects[index - 1].name) && 
-                !recentObjects.includes(obj.name);
+              const isRecent = settings.showRecentObjectsFirst && !searchTerm && index < recentObjectsEndIndex;
+              const showSeparator = recentObjectsEndIndex > 0 && index === recentObjectsEndIndex;
               
               return (
                 <React.Fragment key={obj.name}>
-                  {isFirstNonRecent && (
+                  {showSeparator && (
                     <div className="border-t border-discord-darker my-2 pt-2">
                       <span className="text-[10px] text-discord-text-muted uppercase tracking-wide px-3">All Objects</span>
                     </div>

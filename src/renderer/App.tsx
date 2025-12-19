@@ -83,6 +83,7 @@ function AppContent() {
         isLoggedIn={isLoggedIn} 
         onLogout={handleLogout}
         instanceUrl={session?.instanceUrl}
+        username={session?.username}
         onOpenSettings={() => setIsSettingsOpen(true)}
       />
       <main className="flex-1 overflow-hidden">
