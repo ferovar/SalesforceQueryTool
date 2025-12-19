@@ -41,7 +41,7 @@ const RecordMigrationModal: React.FC<RecordMigrationModalProps> = ({
 }) => {
   const [step, setStep] = useState<MigrationStep>('connect');
   const [targetOrgs, setTargetOrgs] = useState<TargetOrg[]>([]);
-  const [selectedTargetOrg, setSelectedTargetOrg] = useState<TargetOrg | null>(null);
+  const [selectedTargetOrgs, setSelectedTargetOrgs] = useState<TargetOrg[]>([]);
   const [isConnecting, setIsConnecting] = useState(false);
   const [connectionError, setConnectionError] = useState<string | null>(null);
   
@@ -115,9 +115,22 @@ const RecordMigrationModal: React.FC<RecordMigrationModalProps> = ({
   const loadTargetOrgs = async () => {
     const orgs = await window.electronAPI.migration.getTargetOrgs();
     setTargetOrgs(orgs);
-    if (orgs.length > 0 && !selectedTargetOrg) {
-      setSelectedTargetOrg(orgs[0]);
+    // Auto-select all newly connected orgs if none are selected yet
+    if (orgs.length > 0 && selectedTargetOrgs.length === 0) {
+      setSelectedTargetOrgs(orgs);
     }
+  };
+
+  // Toggle org selection
+  const toggleOrgSelection = (org: TargetOrg) => {
+    setSelectedTargetOrgs(prev => {
+      const isSelected = prev.some(o => o.id === org.id);
+      if (isSelected) {
+        return prev.filter(o => o.id !== org.id);
+      } else {
+        return [...prev, org];
+      }
+    });
   };
 
   const loadRelationships = async () => {
@@ -175,13 +188,20 @@ const RecordMigrationModal: React.FC<RecordMigrationModalProps> = ({
       }
 
       if (result.success && result.data) {
-        await loadTargetOrgs();
-        setSelectedTargetOrg({
+        const newOrg: TargetOrg = {
           id: result.data.id,
           label: savedConnection.label,
           instanceUrl: result.data.data.instanceUrl,
           username: result.data.data.username,
           isSandbox: savedConnection.isSandbox,
+        };
+        await loadTargetOrgs();
+        // Auto-select the newly connected org
+        setSelectedTargetOrgs(prev => {
+          if (!prev.some(o => o.id === newOrg.id)) {
+            return [...prev, newOrg];
+          }
+          return prev;
         });
         setSelectedSavedConnection(null);
       } else {
@@ -197,9 +217,8 @@ const RecordMigrationModal: React.FC<RecordMigrationModalProps> = ({
   const handleDisconnectOrg = async (orgId: string) => {
     await window.electronAPI.migration.disconnectTargetOrg(orgId);
     await loadTargetOrgs();
-    if (selectedTargetOrg?.id === orgId) {
-      setSelectedTargetOrg(null);
-    }
+    // Remove from selected orgs
+    setSelectedTargetOrgs(prev => prev.filter(o => o.id !== orgId));
   };
 
   const handleRelationshipToggle = (fieldName: string) => {
@@ -270,27 +289,73 @@ const RecordMigrationModal: React.FC<RecordMigrationModalProps> = ({
   };
 
   const handleExecuteMigration = async () => {
-    if (!selectedTargetOrg || !migrationPlan) return;
+    if (selectedTargetOrgs.length === 0 || !migrationPlan) return;
 
     setIsMigrating(true);
-    setMigrationProgress('Starting migration...');
     setStep('migrate');
 
     try {
-      const result = await window.electronAPI.migration.executeMigration({
-        targetOrgId: selectedTargetOrg.id,
-        objectOrder: migrationPlan.objectOrder,
-        recordsByObject: migrationPlan.recordsByObject,
-        relationshipRemapping: migrationPlan.relationshipRemapping,
-        relationshipConfig, // Pass config for matchByExternalId lookups
-      });
+      // Execute migration to all selected orgs
+      const orgResults: Array<{
+        orgId: string;
+        orgLabel: string;
+        orgUsername: string;
+        results: { objectName: string; inserted: number; failed: number; errors: string[] }[];
+        idMapping: Record<string, string>;
+        totalInserted: number;
+        totalFailed: number;
+      }> = [];
 
-      if (result.success && result.data) {
-        setMigrationResult(result.data);
-        setStep('complete');
-      } else {
-        setConnectionError(result.error || 'Migration failed');
+      let totalInserted = 0;
+      let totalFailed = 0;
+
+      for (let i = 0; i < selectedTargetOrgs.length; i++) {
+        const targetOrg = selectedTargetOrgs[i];
+        setMigrationProgress(`Migrating to ${targetOrg.label || targetOrg.username} (${i + 1}/${selectedTargetOrgs.length})...`);
+
+        const result = await window.electronAPI.migration.executeMigration({
+          targetOrgId: targetOrg.id,
+          objectOrder: migrationPlan.objectOrder,
+          recordsByObject: migrationPlan.recordsByObject,
+          relationshipRemapping: migrationPlan.relationshipRemapping,
+          relationshipConfig,
+        });
+
+        if (result.success && result.data) {
+          orgResults.push({
+            orgId: targetOrg.id,
+            orgLabel: targetOrg.label,
+            orgUsername: targetOrg.username,
+            results: result.data.results,
+            idMapping: result.data.idMapping,
+            totalInserted: result.data.totalInserted,
+            totalFailed: result.data.totalFailed,
+          });
+          totalInserted += result.data.totalInserted;
+          totalFailed += result.data.totalFailed;
+        } else {
+          // Add error result for this org
+          orgResults.push({
+            orgId: targetOrg.id,
+            orgLabel: targetOrg.label,
+            orgUsername: targetOrg.username,
+            results: [{ objectName: 'Error', inserted: 0, failed: 0, errors: [result.error || 'Migration failed'] }],
+            idMapping: {},
+            totalInserted: 0,
+            totalFailed: 0,
+          });
+        }
       }
+
+      // Combine results
+      setMigrationResult({
+        results: orgResults.flatMap(r => r.results),
+        idMapping: orgResults.reduce((acc, r) => ({ ...acc, ...r.idMapping }), {}),
+        totalInserted,
+        totalFailed,
+        orgResults,
+      });
+      setStep('complete');
     } catch (err: any) {
       setConnectionError(err.message || 'Migration failed');
     } finally {
@@ -303,6 +368,7 @@ const RecordMigrationModal: React.FC<RecordMigrationModalProps> = ({
     setMigrationPlan(null);
     setMigrationResult(null);
     setConnectionError(null);
+    setSelectedTargetOrgs([]);
     onClose();
   };
 
@@ -387,23 +453,39 @@ const RecordMigrationModal: React.FC<RecordMigrationModalProps> = ({
                 {targetOrgs.length > 0 && (
                   <div className="mb-6">
                     <label className="block text-sm font-medium text-discord-text-muted mb-2">
-                      Connected This Session
+                      Connected This Session (select one or more)
                     </label>
                     <div className="space-y-2">
-                      {targetOrgs.map(org => (
+                      {targetOrgs.map(org => {
+                        const isSelected = selectedTargetOrgs.some(o => o.id === org.id);
+                        return (
                         <div 
                           key={org.id}
                           className={`flex items-center justify-between p-3 rounded-lg border cursor-pointer transition-colors ${
-                            selectedTargetOrg?.id === org.id
+                            isSelected
                               ? 'bg-discord-accent/20 border-discord-accent'
                               : 'bg-discord-medium border-discord-darker hover:border-discord-muted'
                           }`}
-                          onClick={() => setSelectedTargetOrg(org)}
+                          onClick={() => toggleOrgSelection(org)}
                         >
-                          <div>
-                            <div className="text-white font-medium">{org.label}</div>
-                            <div className="text-sm text-discord-text-muted">{org.username}</div>
-                            <div className="text-xs text-discord-text-muted">{org.instanceUrl}</div>
+                          <div className="flex items-center gap-3">
+                            {/* Checkbox */}
+                            <div className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-colors ${
+                              isSelected 
+                                ? 'bg-discord-accent border-discord-accent' 
+                                : 'border-discord-muted'
+                            }`}>
+                              {isSelected && (
+                                <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                                </svg>
+                              )}
+                            </div>
+                            <div>
+                              <div className="text-white font-medium">{org.label}</div>
+                              <div className="text-sm text-discord-text-muted">{org.username}</div>
+                              <div className="text-xs text-discord-text-muted">{org.instanceUrl}</div>
+                            </div>
                           </div>
                           <div className="flex items-center gap-2">
                             <span className={`px-2 py-0.5 text-xs rounded ${
@@ -425,7 +507,7 @@ const RecordMigrationModal: React.FC<RecordMigrationModalProps> = ({
                             </button>
                           </div>
                         </div>
-                      ))}
+                      )})}
                     </div>
                   </div>
                 )}
@@ -794,25 +876,88 @@ const RecordMigrationModal: React.FC<RecordMigrationModalProps> = ({
                 <h3 className="text-xl font-medium text-white mb-2">
                   Migration {migrationResult.totalFailed === 0 ? 'Complete!' : 'Completed with Errors'}
                 </h3>
+                <p className="text-sm text-discord-text-muted">
+                  {migrationResult.orgResults && migrationResult.orgResults.length > 1 
+                    ? `Migrated to ${migrationResult.orgResults.length} orgs`
+                    : migrationResult.orgResults?.[0]?.orgLabel || migrationResult.orgResults?.[0]?.orgUsername || 'Target org'}
+                </p>
               </div>
 
+              {/* Overall totals */}
               <div className="bg-discord-medium rounded-lg p-4 border border-discord-darker">
                 <div className="grid grid-cols-2 gap-4">
                   <div className="text-center">
                     <div className="text-3xl font-bold text-green-400">{migrationResult.totalInserted}</div>
-                    <div className="text-sm text-discord-text-muted">Records Created</div>
+                    <div className="text-sm text-discord-text-muted">Total Records Created</div>
                   </div>
                   <div className="text-center">
                     <div className="text-3xl font-bold text-red-400">{migrationResult.totalFailed}</div>
-                    <div className="text-sm text-discord-text-muted">Failed</div>
+                    <div className="text-sm text-discord-text-muted">Total Failed</div>
                   </div>
                 </div>
               </div>
 
+              {/* Per-org breakdown */}
+              {migrationResult.orgResults && migrationResult.orgResults.length > 0 && (
+                <div className="space-y-4">
+                  {migrationResult.orgResults.map((orgResult, orgIndex) => (
+                    <div key={orgResult.orgId} className="border border-discord-darker rounded-lg overflow-hidden">
+                      {/* Org header */}
+                      <div className="bg-discord-darker/50 px-4 py-3 border-b border-discord-darker">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <h4 className="text-white font-medium">{orgResult.orgLabel || orgResult.orgUsername}</h4>
+                            <p className="text-xs text-discord-text-muted">{orgResult.orgUsername}</p>
+                          </div>
+                          <div className="flex items-center gap-3 text-sm">
+                            <span className="text-green-400">{orgResult.totalInserted} created</span>
+                            {orgResult.totalFailed > 0 && (
+                              <span className="text-red-400">{orgResult.totalFailed} failed</span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                      
+                      {/* Org results */}
+                      <div className="p-3 space-y-2">
+                        {orgResult.results.map((result, resultIndex) => (
+                          <div 
+                            key={`${orgResult.orgId}-${result.objectName}-${resultIndex}`}
+                            className="p-2 bg-discord-medium rounded border border-discord-darker"
+                          >
+                            <div className="flex items-center justify-between">
+                              <span className="text-white text-sm">{result.objectName}</span>
+                              <span className="text-xs">
+                                <span className="text-green-400">{result.inserted} inserted</span>
+                                {result.failed > 0 && (
+                                  <span className="text-red-400 ml-2">{result.failed} failed</span>
+                                )}
+                              </span>
+                            </div>
+                            {result.errors.length > 0 && (
+                              <div className="mt-1 text-xs text-red-400">
+                                {result.errors.slice(0, 2).map((err, i) => (
+                                  <div key={i}>{err}</div>
+                                ))}
+                                {result.errors.length > 2 && (
+                                  <div className="text-discord-text-muted">...and {result.errors.length - 2} more errors</div>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Legacy results display (fallback if no orgResults) */}
+              {(!migrationResult.orgResults || migrationResult.orgResults.length === 0) && (
               <div className="space-y-3">
-                {migrationResult.results.map(result => (
+                {migrationResult.results.map((result, index) => (
                   <div 
-                    key={result.objectName}
+                    key={`${result.objectName}-${index}`}
                     className="p-3 bg-discord-medium rounded-lg border border-discord-darker"
                   >
                     <div className="flex items-center justify-between mb-1">
@@ -837,6 +982,7 @@ const RecordMigrationModal: React.FC<RecordMigrationModalProps> = ({
                   </div>
                 ))}
               </div>
+              )}
             </div>
           )}
         </div>
@@ -866,10 +1012,10 @@ const RecordMigrationModal: React.FC<RecordMigrationModalProps> = ({
             {step === 'connect' && (
               <button
                 onClick={() => setStep('configure')}
-                disabled={!selectedTargetOrg}
+                disabled={selectedTargetOrgs.length === 0}
                 className="px-4 py-2 bg-discord-accent hover:bg-discord-accent-hover disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-md transition-colors font-medium"
               >
-                Next: Configure Relationships
+                Next: Configure Relationships {selectedTargetOrgs.length > 0 && `(${selectedTargetOrgs.length} org${selectedTargetOrgs.length > 1 ? 's' : ''})`}
               </button>
             )}
 
@@ -886,10 +1032,10 @@ const RecordMigrationModal: React.FC<RecordMigrationModalProps> = ({
             {step === 'review' && (
               <button
                 onClick={handleExecuteMigration}
-                disabled={isMigrating}
+                disabled={isMigrating || selectedTargetOrgs.length === 0}
                 className="px-4 py-2 bg-green-600 hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-md transition-colors font-medium"
               >
-                Start Migration
+                Start Migration to {selectedTargetOrgs.length} Org{selectedTargetOrgs.length > 1 ? 's' : ''}
               </button>
             )}
           </div>

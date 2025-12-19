@@ -211,11 +211,23 @@ export interface MigrationPlanSummary {
   relationshipRemapping: { objectName: string; fieldName: string; originalId: string; recordIndex: number }[];
 }
 
+export interface OrgMigrationResult {
+  orgId: string;
+  orgLabel: string;
+  orgUsername: string;
+  results: { objectName: string; inserted: number; failed: number; errors: string[] }[];
+  idMapping: Record<string, string>;
+  totalInserted: number;
+  totalFailed: number;
+}
+
 export interface MigrationResult {
   results: { objectName: string; inserted: number; failed: number; errors: string[] }[];
   idMapping: Record<string, string>;
   totalInserted: number;
   totalFailed: number;
+  // Multi-org results
+  orgResults?: OrgMigrationResult[];
 }
 
 export interface ChildRelationship {
