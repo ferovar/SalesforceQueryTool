@@ -154,16 +154,13 @@ describe('RecordMigrationModal', () => {
 
     render(<RecordMigrationModal {...defaultProps} />);
     
-    // Wait for saved connection to appear and click it
+    // Wait for saved connection to appear and click it - clicking OAuth connection triggers auto-connect
     await waitFor(() => {
       expect(screen.getByText('QA Sandbox')).toBeInTheDocument();
     });
     fireEvent.click(screen.getByText('QA Sandbox'));
     
-    // Click the connect button
-    const connectButton = await screen.findByText('Connect to QA Sandbox');
-    fireEvent.click(connectButton);
-    
+    // OAuth connections auto-connect when clicked
     await waitFor(() => {
       expect(mockElectronAPI.migration.connectWithSavedOAuth).toHaveBeenCalledWith('oauth_1');
     });
@@ -345,8 +342,8 @@ describe('RecordMigrationModal - Configure Relationships Step', () => {
       expect(screen.getByText('QA Sandbox')).toBeInTheDocument();
     });
 
-    // Wait for the Next button to be enabled and click it
-    const nextButton = await screen.findByText('Next: Configure Relationships');
+    // Wait for the Next button to be enabled and click it (now includes org count)
+    const nextButton = await screen.findByText(/Next: Configure Relationships/);
     expect(nextButton).not.toBeDisabled();
     fireEvent.click(nextButton);
     
@@ -364,13 +361,294 @@ describe('RecordMigrationModal - Configure Relationships Step', () => {
       expect(screen.getByText('QA Sandbox')).toBeInTheDocument();
     });
 
-    // Wait for the Next button and click it
-    const nextButton = await screen.findByText('Next: Configure Relationships');
+    // Wait for the Next button and click it (now includes org count)
+    const nextButton = await screen.findByText(/Next: Configure Relationships/);
     fireEvent.click(nextButton);
     
     // Wait for the Back button to appear on configure step
     await waitFor(() => {
       expect(screen.getByText('Back')).toBeInTheDocument();
     });
+  });
+});
+
+describe('RecordMigrationModal - Multi-Org Support', () => {
+  const targetOrg1 = {
+    id: 'target_1',
+    label: 'QA Sandbox',
+    instanceUrl: 'https://qa.salesforce.com',
+    username: 'admin@qa.sandbox',
+    isSandbox: true,
+  };
+
+  const targetOrg2 = {
+    id: 'target_2',
+    label: 'UAT Sandbox',
+    instanceUrl: 'https://uat.salesforce.com',
+    username: 'admin@uat.sandbox',
+    isSandbox: true,
+  };
+
+  const defaultProps = {
+    isOpen: true,
+    onClose: jest.fn(),
+    selectedRecords: [
+      { Id: '001xxx1', Name: 'Test Account 1' },
+    ],
+    objectName: 'Account',
+    sourceOrgUrl: 'https://test.salesforce.com',
+  };
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockElectronAPI.migration.getTargetOrgs.mockResolvedValue([targetOrg1, targetOrg2]);
+    mockElectronAPI.credentials.getSavedOAuthLogins.mockResolvedValue([]);
+    mockElectronAPI.credentials.getSavedLogins.mockResolvedValue([]);
+    mockElectronAPI.migration.getRelationships.mockResolvedValue({
+      success: true,
+      data: {
+        relationships: [],
+        defaultConfig: [],
+        excludedFields: ['OwnerId'],
+        excludedObjects: ['User'],
+      },
+    });
+    mockLocalStorage.getItem.mockReturnValue(null);
+  });
+
+  it('should display multiple connected orgs with checkboxes', async () => {
+    render(<RecordMigrationModal {...defaultProps} />);
+    
+    await waitFor(() => {
+      expect(screen.getByText('QA Sandbox')).toBeInTheDocument();
+      expect(screen.getByText('UAT Sandbox')).toBeInTheDocument();
+    });
+
+    // Should show "select one or more" label
+    expect(screen.getByText(/select one or more/)).toBeInTheDocument();
+  });
+
+  it('should auto-select all connected orgs by default', async () => {
+    render(<RecordMigrationModal {...defaultProps} />);
+    
+    await waitFor(() => {
+      expect(screen.getByText('QA Sandbox')).toBeInTheDocument();
+    });
+
+    // Button should show count of selected orgs
+    const nextButton = await screen.findByText(/Next: Configure Relationships.*2 orgs/);
+    expect(nextButton).toBeInTheDocument();
+  });
+
+  it('should allow toggling org selection', async () => {
+    render(<RecordMigrationModal {...defaultProps} />);
+    
+    await waitFor(() => {
+      expect(screen.getByText('QA Sandbox')).toBeInTheDocument();
+    });
+
+    // Initially both orgs are selected
+    expect(screen.getByText(/2 orgs/)).toBeInTheDocument();
+
+    // Click on QA Sandbox to deselect it
+    const qaSandbox = screen.getByText('QA Sandbox').closest('div[class*="cursor-pointer"]');
+    if (qaSandbox) {
+      fireEvent.click(qaSandbox);
+    }
+
+    // Now only 1 org should be selected
+    await waitFor(() => {
+      expect(screen.getByText(/1 org\)/)).toBeInTheDocument();
+    });
+  });
+
+  it('should disable Next button when no orgs are selected', async () => {
+    // Start with no connected orgs
+    mockElectronAPI.migration.getTargetOrgs.mockResolvedValue([]);
+    
+    render(<RecordMigrationModal {...defaultProps} />);
+    
+    await waitFor(() => {
+      expect(screen.getByText('Select Target Org')).toBeInTheDocument();
+    });
+
+    // Next button should be disabled
+    const nextButton = screen.getByText(/Next: Configure Relationships/);
+    expect(nextButton).toBeDisabled();
+  });
+
+  it('should show migration button with org count on review step', async () => {
+    mockElectronAPI.migration.analyzeRecords.mockResolvedValue({
+      success: true,
+      data: {
+        objectOrder: ['Account'],
+        recordsByObject: { Account: [{ Id: '001xxx1', Name: 'Test' }] },
+        totalRecords: 1,
+        objectCounts: { Account: 1 },
+        relationshipRemapping: [],
+      },
+    });
+
+    render(<RecordMigrationModal {...defaultProps} />);
+    
+    // Wait for orgs to load
+    await waitFor(() => {
+      expect(screen.getByText('QA Sandbox')).toBeInTheDocument();
+    });
+
+    // Go to configure step
+    const nextButton = await screen.findByText(/Next: Configure Relationships/);
+    fireEvent.click(nextButton);
+
+    // Wait for configure step then click Analyze & Review
+    await waitFor(() => {
+      expect(screen.getByText('Configure Relationships')).toBeInTheDocument();
+    });
+
+    const analyzeButton = screen.getByText('Analyze & Review');
+    fireEvent.click(analyzeButton);
+
+    // Wait for review step
+    await waitFor(() => {
+      expect(screen.getByText('Review Migration Plan')).toBeInTheDocument();
+    });
+
+    // Should show "Start Migration to 2 Orgs" button
+    expect(screen.getByText(/Start Migration to 2 Org/)).toBeInTheDocument();
+  });
+
+  it('should execute migration to multiple orgs and show per-org results', async () => {
+    mockElectronAPI.migration.analyzeRecords.mockResolvedValue({
+      success: true,
+      data: {
+        objectOrder: ['Account'],
+        recordsByObject: { Account: [{ Id: '001xxx1', Name: 'Test' }] },
+        totalRecords: 1,
+        objectCounts: { Account: 1 },
+        relationshipRemapping: [],
+      },
+    });
+
+    mockElectronAPI.migration.executeMigration
+      .mockResolvedValueOnce({
+        success: true,
+        data: {
+          results: [{ objectName: 'Account', inserted: 1, failed: 0, errors: [] }],
+          idMapping: { '001xxx1': '001yyy1' },
+          totalInserted: 1,
+          totalFailed: 0,
+        },
+      })
+      .mockResolvedValueOnce({
+        success: true,
+        data: {
+          results: [{ objectName: 'Account', inserted: 1, failed: 0, errors: [] }],
+          idMapping: { '001xxx1': '001zzz1' },
+          totalInserted: 1,
+          totalFailed: 0,
+        },
+      });
+
+    render(<RecordMigrationModal {...defaultProps} />);
+    
+    // Wait for orgs to load
+    await waitFor(() => {
+      expect(screen.getByText('QA Sandbox')).toBeInTheDocument();
+    });
+
+    // Navigate through steps
+    const nextButton = await screen.findByText(/Next: Configure Relationships/);
+    fireEvent.click(nextButton);
+
+    await waitFor(() => {
+      expect(screen.getByText('Configure Relationships')).toBeInTheDocument();
+    });
+
+    const analyzeButton = screen.getByText('Analyze & Review');
+    fireEvent.click(analyzeButton);
+
+    await waitFor(() => {
+      expect(screen.getByText('Review Migration Plan')).toBeInTheDocument();
+    });
+
+    // Start migration
+    const migrateButton = screen.getByText(/Start Migration to 2 Org/);
+    fireEvent.click(migrateButton);
+
+    // Wait for completion - should show per-org results
+    await waitFor(() => {
+      expect(screen.getByText(/Migration Complete/)).toBeInTheDocument();
+    }, { timeout: 5000 });
+
+    // Should have called executeMigration twice (once per org)
+    expect(mockElectronAPI.migration.executeMigration).toHaveBeenCalledTimes(2);
+
+    // Should show total records created
+    expect(screen.getByText('2')).toBeInTheDocument(); // Total created
+    expect(screen.getByText('Total Records Created')).toBeInTheDocument();
+
+    // Should show per-org breakdown with org names
+    expect(screen.getByText('QA Sandbox')).toBeInTheDocument();
+    expect(screen.getByText('UAT Sandbox')).toBeInTheDocument();
+  });
+
+  it('should handle partial failure in multi-org migration', async () => {
+    mockElectronAPI.migration.analyzeRecords.mockResolvedValue({
+      success: true,
+      data: {
+        objectOrder: ['Account'],
+        recordsByObject: { Account: [{ Id: '001xxx1', Name: 'Test' }] },
+        totalRecords: 1,
+        objectCounts: { Account: 1 },
+        relationshipRemapping: [],
+      },
+    });
+
+    mockElectronAPI.migration.executeMigration
+      .mockResolvedValueOnce({
+        success: true,
+        data: {
+          results: [{ objectName: 'Account', inserted: 1, failed: 0, errors: [] }],
+          idMapping: { '001xxx1': '001yyy1' },
+          totalInserted: 1,
+          totalFailed: 0,
+        },
+      })
+      .mockResolvedValueOnce({
+        success: false,
+        error: 'Connection timeout',
+      });
+
+    render(<RecordMigrationModal {...defaultProps} />);
+    
+    await waitFor(() => {
+      expect(screen.getByText('QA Sandbox')).toBeInTheDocument();
+    });
+
+    // Navigate through steps
+    const nextButton = await screen.findByText(/Next: Configure Relationships/);
+    fireEvent.click(nextButton);
+
+    await waitFor(() => {
+      expect(screen.getByText('Configure Relationships')).toBeInTheDocument();
+    });
+
+    const analyzeButton = screen.getByText('Analyze & Review');
+    fireEvent.click(analyzeButton);
+
+    await waitFor(() => {
+      expect(screen.getByText('Review Migration Plan')).toBeInTheDocument();
+    });
+
+    const migrateButton = screen.getByText(/Start Migration to 2 Org/);
+    fireEvent.click(migrateButton);
+
+    // Wait for completion
+    await waitFor(() => {
+      expect(screen.getByText(/Migration Complete/)).toBeInTheDocument();
+    }, { timeout: 5000 });
+
+    // Should show the error for the failed org
+    expect(screen.getByText(/Connection timeout/)).toBeInTheDocument();
   });
 });
