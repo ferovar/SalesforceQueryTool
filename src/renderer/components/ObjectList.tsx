@@ -1,5 +1,9 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import type { SalesforceObject } from '../types/electron.d';
+import { useSettings } from '../contexts/SettingsContext';
+
+const RECENT_OBJECTS_KEY = 'salesforce-query-tool-recent-objects';
+const MAX_RECENT_OBJECTS = 10;
 
 interface ObjectListProps {
   objects: SalesforceObject[];
@@ -14,11 +18,47 @@ const ObjectList: React.FC<ObjectListProps> = ({
   onSelectObject,
   isLoading,
 }) => {
+  const { settings, updateSettings } = useSettings();
   const [searchTerm, setSearchTerm] = useState('');
   const [showCustomOnly, setShowCustomOnly] = useState(false);
+  const [recentObjects, setRecentObjects] = useState<string[]>([]);
 
+  // Load recent objects from localStorage
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(RECENT_OBJECTS_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        // Validate it's an array of strings
+        if (Array.isArray(parsed) && parsed.every(item => typeof item === 'string')) {
+          setRecentObjects(parsed);
+        } else {
+          // Reset if corrupted
+          localStorage.removeItem(RECENT_OBJECTS_KEY);
+        }
+      }
+    } catch (e) {
+      console.error('Error loading recent objects:', e);
+      localStorage.removeItem(RECENT_OBJECTS_KEY);
+    }
+  }, []);
+
+  // Track when an object is selected
+  const handleObjectSelect = (obj: SalesforceObject) => {
+    // Update recent objects
+    const updated = [obj.name, ...recentObjects.filter(name => name !== obj.name)].slice(0, MAX_RECENT_OBJECTS);
+    setRecentObjects(updated);
+    try {
+      localStorage.setItem(RECENT_OBJECTS_KEY, JSON.stringify(updated));
+    } catch (e) {
+      console.error('Error saving recent objects:', e);
+    }
+    onSelectObject(obj);
+  };
+
+  // Computed: filter and optionally sort objects
   const filteredObjects = useMemo(() => {
-    let filtered = objects;
+    let filtered = [...objects]; // Create a copy to avoid mutating
 
     if (showCustomOnly) {
       filtered = filtered.filter((obj) => obj.custom);
@@ -33,8 +73,37 @@ const ObjectList: React.FC<ObjectListProps> = ({
       );
     }
 
+    // Sort with recent objects first if enabled (only when not searching)
+    if (settings.showRecentObjectsFirst && recentObjects.length > 0 && !searchTerm) {
+      const recentSet = new Set(recentObjects);
+      filtered.sort((a, b) => {
+        const aIsRecent = recentSet.has(a.name);
+        const bIsRecent = recentSet.has(b.name);
+        if (aIsRecent && !bIsRecent) return -1;
+        if (!aIsRecent && bIsRecent) return 1;
+        if (aIsRecent && bIsRecent) {
+          return recentObjects.indexOf(a.name) - recentObjects.indexOf(b.name);
+        }
+        return 0;
+      });
+    }
+
     return filtered;
-  }, [objects, searchTerm, showCustomOnly]);
+  }, [objects, searchTerm, showCustomOnly, settings.showRecentObjectsFirst, recentObjects]);
+
+  // Compute the index where recent objects end (for separator)
+  const recentObjectsEndIndex = useMemo(() => {
+    if (!settings.showRecentObjectsFirst || searchTerm || recentObjects.length === 0) {
+      return -1;
+    }
+    const recentSet = new Set(recentObjects);
+    for (let i = 0; i < filteredObjects.length; i++) {
+      if (!recentSet.has(filteredObjects[i].name)) {
+        return i;
+      }
+    }
+    return filteredObjects.length; // All objects are recent
+  }, [filteredObjects, settings.showRecentObjectsFirst, searchTerm, recentObjects]);
 
   return (
     <div className="h-full flex flex-col">
@@ -78,16 +147,27 @@ const ObjectList: React.FC<ObjectListProps> = ({
           )}
         </div>
 
-        {/* Filter toggle */}
-        <label className="flex items-center gap-2 cursor-pointer">
-          <input
-            type="checkbox"
-            checked={showCustomOnly}
-            onChange={(e) => setShowCustomOnly(e.target.checked)}
-            className="custom-checkbox w-4 h-4"
-          />
-          <span className="text-xs text-discord-text-muted">Custom objects only</span>
-        </label>
+        {/* Filter toggles */}
+        <div className="space-y-2">
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={settings.showRecentObjectsFirst}
+              onChange={(e) => updateSettings({ ...settings, showRecentObjectsFirst: e.target.checked })}
+              className="custom-checkbox w-4 h-4"
+            />
+            <span className="text-xs text-discord-text-muted">Recent objects first</span>
+          </label>
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={showCustomOnly}
+              onChange={(e) => setShowCustomOnly(e.target.checked)}
+              className="custom-checkbox w-4 h-4"
+            />
+            <span className="text-xs text-discord-text-muted">Custom objects only</span>
+          </label>
+        </div>
       </div>
 
       {/* Object count */}
@@ -124,41 +204,59 @@ const ObjectList: React.FC<ObjectListProps> = ({
           </div>
         ) : (
           <div className="p-2">
-            {filteredObjects.map((obj) => (
-              <button
-                key={obj.name}
-                onClick={() => onSelectObject(obj)}
-                className={`w-full text-left px-3 py-2 rounded-md mb-0.5 transition-colors group ${
-                  selectedObject?.name === obj.name
-                    ? 'bg-discord-accent/20 text-discord-text'
-                    : 'text-discord-text-muted hover:bg-discord-lighter hover:text-discord-text'
-                }`}
-              >
-                <div className="flex items-center gap-2">
-                  {/* Icon */}
-                  <div className={`w-2 h-2 rounded-full flex-shrink-0 ${
-                    obj.custom ? 'bg-discord-warning' : 'bg-discord-accent'
-                  }`} />
-                  
-                  {/* Object info */}
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm font-medium truncate">
-                      {obj.label}
-                    </p>
-                    <p className="text-xs text-discord-text-muted truncate">
-                      {obj.name}
-                    </p>
-                  </div>
-
-                  {/* Custom badge */}
-                  {obj.custom && (
-                    <span className="text-[10px] px-1.5 py-0.5 bg-discord-warning/20 text-discord-warning rounded flex-shrink-0">
-                      Custom
-                    </span>
+            {filteredObjects.map((obj, index) => {
+              const isRecent = settings.showRecentObjectsFirst && !searchTerm && index < recentObjectsEndIndex;
+              const showSeparator = recentObjectsEndIndex > 0 && index === recentObjectsEndIndex;
+              
+              return (
+                <React.Fragment key={obj.name}>
+                  {showSeparator && (
+                    <div className="border-t border-discord-darker my-2 pt-2">
+                      <span className="text-[10px] text-discord-text-muted uppercase tracking-wide px-3">All Objects</span>
+                    </div>
                   )}
-                </div>
-              </button>
-            ))}
+                  <button
+                    onClick={() => handleObjectSelect(obj)}
+                    className={`w-full text-left px-3 py-2 rounded-md mb-0.5 transition-colors group ${
+                      selectedObject?.name === obj.name
+                        ? 'bg-discord-accent/20 text-discord-text'
+                        : 'text-discord-text-muted hover:bg-discord-lighter hover:text-discord-text'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2">
+                      {/* Icon */}
+                      <div className={`w-2 h-2 rounded-full flex-shrink-0 ${
+                        obj.custom ? 'bg-discord-warning' : 'bg-discord-accent'
+                      }`} />
+                      
+                      {/* Object info */}
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-medium truncate">
+                          {obj.label}
+                        </p>
+                        <p className="text-xs text-discord-text-muted truncate">
+                          {obj.name}
+                        </p>
+                      </div>
+
+                      {/* Recent indicator */}
+                      {isRecent && (
+                        <svg className="w-3 h-3 text-discord-accent flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clipRule="evenodd" />
+                        </svg>
+                      )}
+
+                      {/* Custom badge */}
+                      {obj.custom && (
+                        <span className="text-[10px] px-1.5 py-0.5 bg-discord-warning/20 text-discord-warning rounded flex-shrink-0">
+                          Custom
+                        </span>
+                      )}
+                    </div>
+                  </button>
+                </React.Fragment>
+              );
+            })}
           </div>
         )}
       </div>

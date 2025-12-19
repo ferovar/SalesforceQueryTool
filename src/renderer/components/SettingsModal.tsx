@@ -6,6 +6,8 @@ export interface AppSettings {
   
   // Safety
   preventProductionEdits: boolean;
+  disableInlineEditing: boolean;
+  disableMigrationFeature: boolean;
   
   // Query defaults
   defaultQueryLimit: number; // 0 means no limit
@@ -14,15 +16,19 @@ export interface AppSettings {
   // UI preferences
   showRelationshipFields: boolean;
   compactResultsView: boolean;
+  showRecentObjectsFirst: boolean;
 }
 
 export const defaultSettings: AppSettings = {
   showPerformanceMonitor: false,
   preventProductionEdits: true,
+  disableInlineEditing: false,
+  disableMigrationFeature: false,
   defaultQueryLimit: 0, // 0 means no limit
   autoSaveToHistory: true,
   showRelationshipFields: true,
   compactResultsView: false,
+  showRecentObjectsFirst: true,
 };
 
 interface SettingsModalProps {
@@ -122,6 +128,18 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                 checked={localSettings.preventProductionEdits}
                 onChange={(v) => handleChange('preventProductionEdits', v)}
               />
+              <SettingToggle
+                label="Disable Inline Editing"
+                description="Completely disable inline record editing to prevent accidental changes."
+                checked={localSettings.disableInlineEditing}
+                onChange={(v) => handleChange('disableInlineEditing', v)}
+              />
+              <SettingToggle
+                label="Disable Migration Feature"
+                description="Hide migration buttons and prevent pushing records to other orgs."
+                checked={localSettings.disableMigrationFeature}
+                onChange={(v) => handleChange('disableMigrationFeature', v)}
+              />
               {isLoggedIn && isProduction !== undefined && (
                 <div className={`text-xs px-3 py-1.5 rounded ${isProduction ? 'bg-discord-danger/20 text-discord-danger' : 'bg-green-500/20 text-green-400'}`}>
                   Currently connected to: {isProduction ? 'Production' : 'Sandbox'}
@@ -172,6 +190,12 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
               UI Preferences
             </h4>
             <div className="space-y-3">
+              <SettingToggle
+                label="Show Recent Objects First"
+                description="Sort recently used objects to the top of the object list."
+                checked={localSettings.showRecentObjectsFirst}
+                onChange={(v) => handleChange('showRecentObjectsFirst', v)}
+              />
               <SettingToggle
                 label="Show Relationship Fields"
                 description="Display related object fields (e.g., Account.Name) in field picker."
