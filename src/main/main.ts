@@ -659,6 +659,16 @@ ipcMain.handle('migration:executeMigration', async (_event, params: {
       
       const objectSpecificExclusions = objectCompoundFields[objectName] || new Set();
       
+      // Build set of fields to skip based on relationshipConfig
+      const fieldsToSkip = new Set<string>();
+      if (relationshipConfig) {
+        for (const config of relationshipConfig) {
+          if (config.action === 'skip') {
+            fieldsToSkip.add(config.fieldName);
+          }
+        }
+      }
+      
       // Prepare records: remap relationship IDs and remove internal fields
       const preparedRecords = records.map(record => {
         const prepared: Record<string, any> = {};
@@ -671,6 +681,11 @@ ipcMain.handle('migration:executeMigration', async (_event, params: {
           
           // Skip compound/read-only fields
           if (compoundReadOnlyFields.has(key) || objectSpecificExclusions.has(key)) {
+            continue;
+          }
+          
+          // Skip relationship fields marked as "skip" in config
+          if (fieldsToSkip.has(key)) {
             continue;
           }
           
