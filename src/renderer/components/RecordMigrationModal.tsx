@@ -436,13 +436,16 @@ const RecordMigrationModal: React.FC<RecordMigrationModalProps> = ({
                     {targetOrgs.length > 0 ? 'Or select from saved connections' : 'Saved Connections'}
                   </label>
                   
-                  {/* Filter out connections that match the current source org */}
+                  {/* Filter out connections that match the current source org or are already connected */}
                   {savedConnections.filter(c => {
                     // Compare usernames directly if available
-                    if (sourceUsername) {
-                      return c.username.toLowerCase() !== sourceUsername.toLowerCase();
+                    if (sourceUsername && c.username.toLowerCase() === sourceUsername.toLowerCase()) {
+                      return false;
                     }
-                    // Fallback: check if instanceUrl contains the connection's instance
+                    // Filter out already connected target orgs
+                    if (targetOrgs.some(org => org.username.toLowerCase() === c.username.toLowerCase())) {
+                      return false;
+                    }
                     return true;
                   }).length === 0 && savedConnections.length > 0 ? (
                     <div className="p-6 bg-discord-medium rounded-lg border border-discord-darker text-center">
@@ -451,7 +454,7 @@ const RecordMigrationModal: React.FC<RecordMigrationModalProps> = ({
                       </svg>
                       <p className="text-discord-text mb-2">No other connections available</p>
                       <p className="text-sm text-discord-text-muted">
-                        All saved connections match your current org. Log in to other Salesforce orgs to use them here.
+                        All saved connections are either your current org or already connected above.
                       </p>
                     </div>
                   ) : savedConnections.length === 0 ? (
@@ -470,9 +473,14 @@ const RecordMigrationModal: React.FC<RecordMigrationModalProps> = ({
                         .filter(connection => {
                           // Filter out the current source org by username
                           if (sourceUsername) {
-                            return connection.username.toLowerCase() !== sourceUsername.toLowerCase();
+                            if (connection.username.toLowerCase() === sourceUsername.toLowerCase()) {
+                              return false;
+                            }
                           }
-                          // Fallback: allow all if no username provided
+                          // Filter out already connected target orgs
+                          if (targetOrgs.some(org => org.username.toLowerCase() === connection.username.toLowerCase())) {
+                            return false;
+                          }
                           return true;
                         })
                         .map(connection => (
@@ -542,6 +550,9 @@ const RecordMigrationModal: React.FC<RecordMigrationModalProps> = ({
                       const isExcludedField = excludedFields.includes(config.fieldName);
                       const isExcludedObject = rel.referenceTo.every(obj => excludedObjects.includes(obj));
                       const isAutoExcluded = isExcludedField || isExcludedObject;
+                      
+                      // Special handling for RecordTypeId - always enabled, auto-matched
+                      const isRecordTypeId = config.fieldName === 'RecordTypeId';
 
                       // Check if this field is blank for all selected records
                       const allBlank = selectedRecords.every(record => {
@@ -551,6 +562,36 @@ const RecordMigrationModal: React.FC<RecordMigrationModalProps> = ({
 
                       const targetObject = config.referenceTo || rel.referenceTo[0];
                       const externalIdFields = externalIdFieldsCache[targetObject] || [];
+
+                      // RecordTypeId gets special treatment - always included with auto-matching
+                      if (isRecordTypeId) {
+                        return (
+                          <div 
+                            key={config.fieldName}
+                            className="p-4 rounded-lg border bg-green-500/10 border-green-500/30"
+                          >
+                            <div className="flex items-start justify-between gap-4">
+                              <div className="flex-1">
+                                <div className="text-white font-medium flex items-center gap-2">
+                                  {rel.fieldLabel}
+                                  <span className="px-2 py-0.5 text-xs bg-green-500/20 text-green-400 rounded">Auto-Matched</span>
+                                </div>
+                                <div className="text-sm text-discord-text-muted">
+                                  {config.fieldName} → RecordType
+                                </div>
+                                <div className="text-xs text-green-400 mt-2">
+                                  ✓ RecordTypes are automatically matched by ID. If not found, matches by SObjectType + DeveloperName.
+                                </div>
+                                {allBlank && (
+                                  <div className="text-xs text-discord-text-muted mt-1">
+                                    Empty for all selected records
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      }
 
                       return (
                         <div 
