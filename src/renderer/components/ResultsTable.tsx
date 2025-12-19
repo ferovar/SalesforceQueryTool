@@ -1,6 +1,7 @@
 import React, { useMemo, useState, useRef, useEffect, useCallback } from 'react';
 import type { ObjectDescription, SalesforceField } from '../types/electron.d';
 import RecordMigrationModal from './RecordMigrationModal';
+import { useSettings } from '../contexts/SettingsContext';
 
 interface ResultsTableProps {
   results: any[] | null;
@@ -46,6 +47,7 @@ const ResultsTable: React.FC<ResultsTableProps> = ({
   executionStartTime = null,
   onCancelQuery,
 }) => {
+  const { settings } = useSettings();
   const [sortColumn, setSortColumn] = useState<string | null>(null);
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
   const [editingCell, setEditingCell] = useState<EditingCell | null>(null);
@@ -503,23 +505,23 @@ const ResultsTable: React.FC<ResultsTableProps> = ({
               {selectedRecords.size} selected
             </span>
           )}
-          {objectDescription && !disableEditing && selectedRecords.size === 0 && (
+          {objectDescription && !disableEditing && !settings.disableInlineEditing && selectedRecords.size === 0 && (
             <span className="text-xs text-discord-text-muted bg-discord-lighter px-2 py-0.5 rounded">
               Double-click editable cells to edit inline
             </span>
           )}
-          {objectDescription && disableEditing && editingDisabledReason && (
+          {objectDescription && (disableEditing || settings.disableInlineEditing) && (
             <span className="text-xs text-discord-warning bg-discord-warning/10 px-2 py-0.5 rounded flex items-center gap-1">
               <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
               </svg>
-              {editingDisabledReason}
+              {settings.disableInlineEditing ? 'Inline editing disabled in settings' : editingDisabledReason}
             </span>
           )}
         </div>
 
         <div className="flex items-center gap-2">
-          {selectedRecords.size > 0 && (
+          {selectedRecords.size > 0 && !settings.disableMigrationFeature && (
             <button
               onClick={() => setShowMigrationModal(true)}
               className="btn btn-primary text-sm flex items-center gap-2"
@@ -557,7 +559,7 @@ const ResultsTable: React.FC<ResultsTableProps> = ({
               </th>
               <th className="w-12 text-center">#</th>
               {columns.map((column) => {
-                const canEdit = !disableEditing && isFieldEditable(column);
+                const canEdit = !disableEditing && !settings.disableInlineEditing && isFieldEditable(column);
                 return (
                   <th
                     key={column}
@@ -608,7 +610,7 @@ const ResultsTable: React.FC<ResultsTableProps> = ({
                   {index + 1}
                 </td>
                 {columns.map((column) => {
-                  const canEdit = !disableEditing && isFieldEditable(column) && record.Id;
+                  const canEdit = !disableEditing && !settings.disableInlineEditing && isFieldEditable(column) && record.Id;
                   const isEditing = editingCell?.recordId === record.Id && editingCell?.column === column;
                   const cellError = getCellError(record.Id, column);
                   const statusClass = getCellStatusClass(record.Id, column);

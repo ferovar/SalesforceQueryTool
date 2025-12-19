@@ -69,6 +69,14 @@ const QueryBuilder: React.FC<QueryBuilderProps> = ({
   const [newQueryName, setNewQueryName] = useState('');
   const [savingQuery, setSavingQuery] = useState(false);
   const [activeSavedQuery, setActiveSavedQuery] = useState<SavedQuery | null>(null);
+  const [showCopiedToast, setShowCopiedToast] = useState(false);
+
+  // Handle copy to clipboard
+  const handleCopyQuery = useCallback(() => {
+    navigator.clipboard.writeText(query);
+    setShowCopiedToast(true);
+    setTimeout(() => setShowCopiedToast(false), 2000);
+  }, [query]);
 
   // Load saved queries when object changes
   useEffect(() => {
@@ -839,7 +847,7 @@ const QueryBuilder: React.FC<QueryBuilderProps> = ({
       )}
 
       {/* Query Editor */}
-      <div className="mb-4 relative">
+      <div className="mb-4 relative group">
         <label className="block text-sm font-medium text-discord-text-muted mb-2">
           SOQL Query
         </label>
@@ -857,6 +865,27 @@ const QueryBuilder: React.FC<QueryBuilderProps> = ({
             rows={6}
             spellCheck={false}
           />
+          {/* Copy button - appears on hover */}
+          {query && (
+            <button
+              onClick={handleCopyQuery}
+              className="absolute top-2 right-2 p-1.5 rounded bg-discord-darker/80 text-discord-text-muted hover:text-discord-text hover:bg-discord-lighter opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1"
+              title="Copy query to clipboard"
+            >
+              {showCopiedToast ? (
+                <>
+                  <svg className="w-4 h-4 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                  <span className="text-xs text-green-400">Copied!</span>
+                </>
+              ) : (
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                </svg>
+              )}
+            </button>
+          )}
         </div>
         
         {/* Autocomplete Dropdown */}
