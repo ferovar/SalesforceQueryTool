@@ -255,6 +255,7 @@ const MainPage: React.FC<MainPageProps> = ({ session, onOpenSettings }) => {
                     : undefined
                 }
                 sourceOrgUrl={session.instanceUrl}
+                sourceUsername={session.username}
                 executionStartTime={queryStartTime}
                 onCancelQuery={handleCancelQuery}
                 onRecordUpdate={(recordId, field, newValue) => {

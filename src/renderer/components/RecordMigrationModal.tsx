@@ -25,6 +25,7 @@ interface RecordMigrationModalProps {
   selectedRecords: Record<string, any>[];
   objectName: string;
   sourceOrgUrl: string;
+  sourceUsername?: string;
 }
 
 type MigrationStep = 'connect' | 'configure' | 'review' | 'migrate' | 'complete';
@@ -35,6 +36,7 @@ const RecordMigrationModal: React.FC<RecordMigrationModalProps> = ({
   selectedRecords,
   objectName,
   sourceOrgUrl,
+  sourceUsername,
 }) => {
   const [step, setStep] = useState<MigrationStep>('connect');
   const [targetOrgs, setTargetOrgs] = useState<TargetOrg[]>([]);
@@ -389,7 +391,14 @@ const RecordMigrationModal: React.FC<RecordMigrationModalProps> = ({
                   </label>
                   
                   {/* Filter out connections that match the current source org */}
-                  {savedConnections.filter(c => !sourceOrgUrl.includes(c.username.split('@')[0]) && !sourceOrgUrl.toLowerCase().includes(c.label.toLowerCase())).length === 0 && savedConnections.length > 0 ? (
+                  {savedConnections.filter(c => {
+                    // Compare usernames directly if available
+                    if (sourceUsername) {
+                      return c.username.toLowerCase() !== sourceUsername.toLowerCase();
+                    }
+                    // Fallback: check if instanceUrl contains the connection's instance
+                    return true;
+                  }).length === 0 && savedConnections.length > 0 ? (
                     <div className="p-6 bg-discord-medium rounded-lg border border-discord-darker text-center">
                       <svg className="w-12 h-12 mx-auto text-discord-text-muted mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
@@ -413,13 +422,12 @@ const RecordMigrationModal: React.FC<RecordMigrationModalProps> = ({
                     <div className="space-y-2">
                       {savedConnections
                         .filter(connection => {
-                          // Filter out the current source org
-                          const sourceUrlLower = sourceOrgUrl.toLowerCase();
-                          const labelLower = connection.label.toLowerCase();
-                          const usernameLower = connection.username.toLowerCase();
-                          // Check if this connection matches the source org
-                          return !sourceUrlLower.includes(usernameLower.split('@')[0]) && 
-                                 !sourceUrlLower.includes(labelLower.replace(/\s+/g, ''));
+                          // Filter out the current source org by username
+                          if (sourceUsername) {
+                            return connection.username.toLowerCase() !== sourceUsername.toLowerCase();
+                          }
+                          // Fallback: allow all if no username provided
+                          return true;
                         })
                         .map(connection => (
                         <div 

@@ -10,6 +10,7 @@ export interface UserSession {
   userId: string;
   organizationId: string;
   instanceUrl: string;
+  username?: string;
 }
 
 function AppContent() {

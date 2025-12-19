@@ -177,7 +177,7 @@ ipcMain.handle('salesforce:login', async (_event, credentials: {
       });
     }
     
-    return { success: true, data: result };
+    return { success: true, data: { ...result, username: credentials.username } };
   } catch (error: any) {
     return { success: false, error: error.message };
   }

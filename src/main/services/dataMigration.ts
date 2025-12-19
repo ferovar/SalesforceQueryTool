@@ -62,6 +62,7 @@ export const DEFAULT_EXCLUDED_FIELDS = [
   'LastViewedDate',
   'LastReferencedDate',
   'IsDeleted',
+  'MasterRecordId', // System field for merged records - not writable
 ];
 
 // Default relationship objects to exclude (users, org-specific)
@@ -71,7 +72,8 @@ export const DEFAULT_EXCLUDED_OBJECTS = [
   'Profile',
   'UserRole',
   'Organization',
-  'RecordType', // Often different IDs between orgs
+  // Note: RecordType is NOT excluded - RecordTypeId should be migrated
+  // The RecordType IDs may differ between orgs, but we let the user handle that
 ];
 
 /**

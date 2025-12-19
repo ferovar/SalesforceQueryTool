@@ -13,6 +13,7 @@ interface ResultsTableProps {
   disableEditing?: boolean;
   editingDisabledReason?: string;
   sourceOrgUrl?: string;
+  sourceUsername?: string;
   executionStartTime?: number | null;
   onCancelQuery?: () => void;
 }
@@ -41,6 +42,7 @@ const ResultsTable: React.FC<ResultsTableProps> = ({
   disableEditing = false,
   editingDisabledReason,
   sourceOrgUrl = '',
+  sourceUsername = '',
   executionStartTime = null,
   onCancelQuery,
 }) => {
@@ -659,6 +661,7 @@ const ResultsTable: React.FC<ResultsTableProps> = ({
         selectedRecords={getSelectedRecordsData()}
         objectName={getObjectName()}
         sourceOrgUrl={sourceOrgUrl}
+        sourceUsername={sourceUsername}
       />
     </div>
   );
