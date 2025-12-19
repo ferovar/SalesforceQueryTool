@@ -506,7 +506,12 @@ ipcMain.handle('migration:executeMigration', async (_event, params: {
     const sourceConnection = salesforceService.getConnection();
     
     // Handle matchByExternalId lookups - query target org to find matching records
-    const externalIdMappings = relationshipConfig?.filter(c => c.action === 'matchByExternalId' && c.externalIdField) || [];
+    // Note: RecordTypeId is handled separately with special SObjectType+DeveloperName matching
+    const externalIdMappings = relationshipConfig?.filter(c => 
+      c.action === 'matchByExternalId' && 
+      c.externalIdField && 
+      c.fieldName !== 'RecordTypeId' // RecordTypeId has special handling below
+    ) || [];
     
     if (externalIdMappings.length > 0 && sourceConnection) {
       for (const config of externalIdMappings) {
@@ -638,8 +643,16 @@ ipcMain.handle('migration:executeMigration', async (_event, params: {
           }
           
           // Special handling for RecordTypeId - use our RecordType mapping
-          if (key === 'RecordTypeId' && value && recordTypeMapping.has(value as string)) {
-            prepared[key] = recordTypeMapping.get(value as string);
+          // RecordTypes are matched by SObjectType + DeveloperName, not by ID
+          if (key === 'RecordTypeId' && value) {
+            if (recordTypeMapping.has(value as string)) {
+              prepared[key] = recordTypeMapping.get(value as string);
+            } else {
+              // RecordType not found in target - set to null to use default
+              // This is better than passing the source ID which would fail
+              prepared[key] = null;
+              console.warn(`RecordTypeId ${value} not found in target org, using default`);
+            }
           }
           // Check if this is a relationship field that needs remapping
           else if (value && typeof value === 'string' && idMapping.has(value)) {
