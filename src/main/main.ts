@@ -4,6 +4,8 @@ import { SalesforceService } from './services/salesforce';
 import { CredentialsStore } from './services/credentials';
 import { QueriesStore } from './services/queries';
 import { QueryHistoryStore } from './services/queryHistory';
+import { OrgConnectionManager } from './services/orgConnectionManager';
+import { DataMigrationService, RelationshipConfig, DEFAULT_EXCLUDED_FIELDS, DEFAULT_EXCLUDED_OBJECTS } from './services/dataMigration';
 
 let mainWindow: BrowserWindow | null = null;
 let splashWindow: BrowserWindow | null = null;
@@ -11,6 +13,8 @@ const salesforceService = new SalesforceService();
 const credentialsStore = new CredentialsStore();
 const queriesStore = new QueriesStore();
 const queryHistoryStore = new QueryHistoryStore();
+const orgConnectionManager = new OrgConnectionManager();
+let dataMigrationService: DataMigrationService | null = null;
 
 // Check if we should use dev server - only if explicitly in development AND not in production mode
 const isDev = process.env.NODE_ENV !== 'production' && !app.isPackaged && process.env.VITE_DEV_SERVER_URL !== undefined;
@@ -347,4 +351,241 @@ ipcMain.handle('history:clear', () => {
 ipcMain.handle('history:delete', (_event, entryId: string) => {
   queryHistoryStore.deleteEntry(entryId);
   return { success: true };
+});
+
+// IPC Handlers for data migration
+ipcMain.handle('migration:connectTargetOrg', async (_event, options: { isSandbox: boolean; label: string; clientId: string }) => {
+  try {
+    const result = await orgConnectionManager.connectWithOAuth(options.isSandbox, options.clientId, options.label);
+    return { success: true, data: result };
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('migration:connectWithSavedOAuth', async (_event, savedOAuthId: string) => {
+  try {
+    const savedOAuth = credentialsStore.getOAuthLoginById(savedOAuthId);
+    if (!savedOAuth) {
+      return { success: false, error: 'Saved OAuth connection not found' };
+    }
+    
+    const result = await orgConnectionManager.connectWithToken(
+      savedOAuth.instanceUrl,
+      savedOAuth.accessToken,
+      savedOAuth.isSandbox,
+      savedOAuth.username
+    );
+    return { success: true, data: result };
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('migration:connectWithSavedCredentials', async (_event, username: string) => {
+  try {
+    const savedCredentials = credentialsStore.getLoginByUsername(username);
+    if (!savedCredentials) {
+      return { success: false, error: 'Saved credentials not found' };
+    }
+    
+    const result = await orgConnectionManager.connectWithPassword(
+      savedCredentials.username,
+      savedCredentials.password,
+      savedCredentials.securityToken,
+      savedCredentials.isSandbox,
+      savedCredentials.label || savedCredentials.username
+    );
+    return { success: true, data: result };
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('migration:getTargetOrgs', () => {
+  const connections = orgConnectionManager.getAllConnections();
+  return connections.map(c => ({
+    id: c.id,
+    label: c.label,
+    instanceUrl: c.instanceUrl,
+    username: c.username,
+    isSandbox: c.isSandbox,
+  }));
+});
+
+ipcMain.handle('migration:disconnectTargetOrg', async (_event, connectionId: string) => {
+  try {
+    await orgConnectionManager.disconnect(connectionId);
+    return { success: true };
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('migration:getRelationships', async (_event, objectName: string) => {
+  try {
+    // Initialize data migration service if not exists
+    const connection = salesforceService.getConnection();
+    if (!connection) {
+      return { success: false, error: 'Not connected to source org' };
+    }
+    dataMigrationService = new DataMigrationService(connection);
+    
+    const relationships = await dataMigrationService.getRelationships(objectName);
+    const defaultConfig = await dataMigrationService.getDefaultRelationshipConfig(objectName);
+    
+    return { 
+      success: true, 
+      data: { 
+        relationships, 
+        defaultConfig,
+        excludedFields: DEFAULT_EXCLUDED_FIELDS,
+        excludedObjects: DEFAULT_EXCLUDED_OBJECTS,
+      } 
+    };
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('migration:analyzeRecords', async (_event, params: {
+  objectName: string;
+  records: Record<string, any>[];
+  relationshipConfig: RelationshipConfig[];
+}) => {
+  try {
+    const connection = salesforceService.getConnection();
+    if (!connection) {
+      return { success: false, error: 'Not connected to source org' };
+    }
+    dataMigrationService = new DataMigrationService(connection);
+    
+    const analyzed = await dataMigrationService.analyzeRelationships(
+      params.objectName,
+      params.records,
+      params.relationshipConfig
+    );
+    
+    const plan = dataMigrationService.buildMigrationPlan(analyzed);
+    
+    // Convert Map to serializable object
+    const recordsByObjectSerialized: Record<string, Record<string, any>[]> = {};
+    for (const [key, value] of plan.recordsByObject) {
+      recordsByObjectSerialized[key] = value;
+    }
+    
+    return { 
+      success: true, 
+      data: {
+        objectOrder: plan.objectOrder,
+        recordsByObject: recordsByObjectSerialized,
+        totalRecords: plan.totalRecords,
+        objectCounts: plan.objectCounts,
+        relationshipRemapping: plan.relationshipRemapping,
+      }
+    };
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('migration:executeMigration', async (_event, params: {
+  targetOrgId: string;
+  objectOrder: string[];
+  recordsByObject: Record<string, Record<string, any>[]>;
+  relationshipRemapping: { objectName: string; fieldName: string; originalId: string; recordIndex: number }[];
+}) => {
+  try {
+    const { targetOrgId, objectOrder, recordsByObject, relationshipRemapping } = params;
+    
+    const idMapping = new Map<string, string>();
+    const results: { objectName: string; inserted: number; failed: number; errors: string[] }[] = [];
+    
+    // Insert records in order (parents first)
+    for (const objectName of objectOrder) {
+      const records = recordsByObject[objectName] || [];
+      if (records.length === 0) continue;
+      
+      // Prepare records: remap relationship IDs and remove internal fields
+      const preparedRecords = records.map(record => {
+        const prepared: Record<string, any> = {};
+        
+        for (const [key, value] of Object.entries(record)) {
+          // Skip internal tracking fields
+          if (key === '_originalId' || key === '_tempId') {
+            continue;
+          }
+          
+          // Check if this is a relationship field that needs remapping
+          if (value && typeof value === 'string' && idMapping.has(value)) {
+            prepared[key] = idMapping.get(value);
+          } else {
+            prepared[key] = value;
+          }
+        }
+        
+        return prepared;
+      });
+      
+      // Insert into target org
+      const insertResults = await orgConnectionManager.insertRecords(
+        targetOrgId,
+        objectName,
+        preparedRecords
+      );
+      
+      let inserted = 0;
+      let failed = 0;
+      const errors: string[] = [];
+      
+      insertResults.forEach((result, index) => {
+        if (result.success) {
+          inserted++;
+          // Map original ID to new ID
+          const originalId = records[index]._originalId;
+          if (originalId) {
+            idMapping.set(originalId, result.id);
+          }
+        } else {
+          failed++;
+          errors.push(`Record ${index + 1}: ${result.errors?.join(', ') || 'Unknown error'}`);
+        }
+      });
+      
+      results.push({ objectName, inserted, failed, errors });
+    }
+    
+    // Convert idMapping to serializable object
+    const idMappingSerialized: Record<string, string> = {};
+    for (const [key, value] of idMapping) {
+      idMappingSerialized[key] = value;
+    }
+    
+    return { 
+      success: true, 
+      data: { 
+        results,
+        idMapping: idMappingSerialized,
+        totalInserted: results.reduce((sum, r) => sum + r.inserted, 0),
+        totalFailed: results.reduce((sum, r) => sum + r.failed, 0),
+      }
+    };
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('migration:getChildRelationships', async (_event, objectName: string) => {
+  try {
+    const connection = salesforceService.getConnection();
+    if (!connection) {
+      return { success: false, error: 'Not connected to source org' };
+    }
+    dataMigrationService = new DataMigrationService(connection);
+    
+    const childRelationships = await dataMigrationService.getChildRelationships(objectName);
+    return { success: true, data: childRelationships };
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
 });

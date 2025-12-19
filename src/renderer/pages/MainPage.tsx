@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import type { UserSession } from '../App';
 import type { SalesforceObject, SalesforceField, ObjectDescription } from '../types/electron.d';
 import ObjectList from '../components/ObjectList';
@@ -26,6 +26,9 @@ const MainPage: React.FC<MainPageProps> = ({ session, onOpenSettings }) => {
   const [totalRecords, setTotalRecords] = useState<number>(0);
   const [historyRefreshTrigger, setHistoryRefreshTrigger] = useState(0);
   const [showHistory, setShowHistory] = useState(true);
+  const [queryStartTime, setQueryStartTime] = useState<number | null>(null);
+  const queryCancelledRef = useRef(false);
+  const [selectedLimit, setSelectedLimit] = useState<number>(settings.defaultQueryLimit);
 
   // Load objects on mount
   useEffect(() => {
@@ -58,15 +61,14 @@ const MainPage: React.FC<MainPageProps> = ({ session, onOpenSettings }) => {
       const result = await window.electronAPI.salesforce.describeObject(obj.name);
       if (result.success && result.data) {
         setObjectDescription(result.data);
-        // Build default query
+        // Build default query (without LIMIT - limit is controlled by dropdown)
         const defaultFields = result.data.fields
           .slice(0, 10)
           .map((f: SalesforceField) => f.name)
           .join(', ');
-        const limitClause = settings.defaultQueryLimit > 0 
-          ? `\nLIMIT ${settings.defaultQueryLimit}` 
-          : '';
-        setQuery(`SELECT ${defaultFields}\nFROM ${obj.name}${limitClause}`);
+        setQuery(`SELECT ${defaultFields}\nFROM ${obj.name}`);
+        // Reset limit to default from settings when selecting new object
+        setSelectedLimit(settings.defaultQueryLimit);
       } else {
         console.error('Failed to describe object:', result.error);
       }
@@ -77,26 +79,37 @@ const MainPage: React.FC<MainPageProps> = ({ session, onOpenSettings }) => {
     }
   };
 
-  const handleExecuteQuery = async (includeDeleted: boolean = false) => {
+  const handleExecuteQuery = async (includeDeleted: boolean = false, limit: number = 0) => {
     if (!query.trim()) return;
 
     setIsExecutingQuery(true);
     setQueryError(null);
     setQueryResults(null);
+    setQueryStartTime(Date.now());
+    queryCancelledRef.current = false;
+
+    // Build full query with limit if specified
+    const fullQuery = limit > 0 ? `${query.trim()}\nLIMIT ${limit}` : query.trim();
 
     // Extract object name from query for history
     const objectMatch = query.match(/FROM\s+(\w+)/i);
     const objectName = objectMatch ? objectMatch[1] : selectedObject?.name || 'Unknown';
 
     try {
-      const result = await window.electronAPI.salesforce.executeQuery(query, includeDeleted);
+      const result = await window.electronAPI.salesforce.executeQuery(fullQuery, includeDeleted);
+      
+      // Check if query was cancelled while executing
+      if (queryCancelledRef.current) {
+        return; // Don't process results if cancelled
+      }
+      
       if (result.success && result.data) {
         setQueryResults(result.data);
         setTotalRecords(result.data.length);
         
-        // Add to history
+        // Add to history (save the full query with limit)
         await window.electronAPI.history.add({
-          query: query.trim(),
+          query: fullQuery,
           objectName,
           recordCount: result.data.length,
           success: true,
@@ -108,7 +121,7 @@ const MainPage: React.FC<MainPageProps> = ({ session, onOpenSettings }) => {
         
         // Add failed query to history
         await window.electronAPI.history.add({
-          query: query.trim(),
+          query: fullQuery,
           objectName,
           recordCount: 0,
           success: false,
@@ -117,12 +130,17 @@ const MainPage: React.FC<MainPageProps> = ({ session, onOpenSettings }) => {
         setHistoryRefreshTrigger(prev => prev + 1);
       }
     } catch (err: any) {
+      // Check if query was cancelled while executing
+      if (queryCancelledRef.current) {
+        return; // Don't show error if cancelled
+      }
+      
       const errorMsg = err.message || 'An unexpected error occurred';
       setQueryError(errorMsg);
       
       // Add failed query to history
       await window.electronAPI.history.add({
-        query: query.trim(),
+        query: fullQuery,
         objectName,
         recordCount: 0,
         success: false,
@@ -131,7 +149,29 @@ const MainPage: React.FC<MainPageProps> = ({ session, onOpenSettings }) => {
       setHistoryRefreshTrigger(prev => prev + 1);
     } finally {
       setIsExecutingQuery(false);
+      setQueryStartTime(null);
     }
+  };
+
+  const handleCancelQuery = () => {
+    queryCancelledRef.current = true;
+    setIsExecutingQuery(false);
+    setQueryStartTime(null);
+    setQueryError('Query cancelled by user');
+  };
+
+  // Parse LIMIT from a query string
+  const parseLimitFromQuery = (queryStr: string): number | null => {
+    const limitMatch = queryStr.match(/\bLIMIT\s+(\d+)\s*$/i);
+    if (limitMatch) {
+      return parseInt(limitMatch[1], 10);
+    }
+    return null;
+  };
+
+  // Remove LIMIT clause from a query string
+  const removeLimitFromQuery = (queryStr: string): string => {
+    return queryStr.replace(/\s*\bLIMIT\s+\d+\s*$/i, '');
   };
 
   // Handle selecting a query from history
@@ -141,7 +181,17 @@ const MainPage: React.FC<MainPageProps> = ({ session, onOpenSettings }) => {
     if (obj && obj !== selectedObject) {
       await handleObjectSelect(obj);
     }
-    setQuery(historyQuery);
+    
+    // Parse limit from history query and update dropdown
+    const limit = parseLimitFromQuery(historyQuery);
+    if (limit !== null) {
+      setSelectedLimit(limit);
+      // Remove LIMIT from query text since it's now in the dropdown
+      setQuery(removeLimitFromQuery(historyQuery));
+    } else {
+      setSelectedLimit(0); // No limit
+      setQuery(historyQuery);
+    }
   };
 
   const handleExportCsv = async () => {
@@ -184,6 +234,8 @@ const MainPage: React.FC<MainPageProps> = ({ session, onOpenSettings }) => {
                 onExecuteQuery={handleExecuteQuery}
                 isLoading={isLoadingDescription}
                 isExecuting={isExecutingQuery}
+                selectedLimit={selectedLimit}
+                onLimitChange={setSelectedLimit}
               />
             </div>
 
@@ -202,6 +254,9 @@ const MainPage: React.FC<MainPageProps> = ({ session, onOpenSettings }) => {
                     ? 'Inline editing disabled for production'
                     : undefined
                 }
+                sourceOrgUrl={session.instanceUrl}
+                executionStartTime={queryStartTime}
+                onCancelQuery={handleCancelQuery}
                 onRecordUpdate={(recordId, field, newValue) => {
                   // Update local results to reflect the change
                   setQueryResults(prev => {

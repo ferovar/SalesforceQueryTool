@@ -438,4 +438,8 @@ export class SalesforceService {
   isConnected(): boolean {
     return this.connection !== null;
   }
+
+  getConnection(): jsforce.Connection | null {
+    return this.connection;
+  }
 }

@@ -1,5 +1,6 @@
 import React, { useMemo, useState, useRef, useEffect, useCallback } from 'react';
 import type { ObjectDescription, SalesforceField } from '../types/electron.d';
+import RecordMigrationModal from './RecordMigrationModal';
 
 interface ResultsTableProps {
   results: any[] | null;
@@ -11,6 +12,9 @@ interface ResultsTableProps {
   onRecordUpdate?: (recordId: string, field: string, newValue: any) => void;
   disableEditing?: boolean;
   editingDisabledReason?: string;
+  sourceOrgUrl?: string;
+  executionStartTime?: number | null;
+  onCancelQuery?: () => void;
 }
 
 interface EditingCell {
@@ -36,13 +40,36 @@ const ResultsTable: React.FC<ResultsTableProps> = ({
   onRecordUpdate,
   disableEditing = false,
   editingDisabledReason,
+  sourceOrgUrl = '',
+  executionStartTime = null,
+  onCancelQuery,
 }) => {
   const [sortColumn, setSortColumn] = useState<string | null>(null);
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
   const [editingCell, setEditingCell] = useState<EditingCell | null>(null);
   const [cellStatuses, setCellStatuses] = useState<Map<string, CellStatus>>(new Map());
+  const [selectedRecords, setSelectedRecords] = useState<Set<string>>(new Set());
+  const [showMigrationModal, setShowMigrationModal] = useState(false);
+  const [elapsedTime, setElapsedTime] = useState<number>(0);
   const inputRef = useRef<HTMLInputElement>(null);
   const prevEditingCellRef = useRef<string | null>(null);
+
+  // Track elapsed time during query execution
+  useEffect(() => {
+    if (isLoading && executionStartTime) {
+      // Update immediately
+      setElapsedTime(Date.now() - executionStartTime);
+      
+      // Update every 100ms for smooth timer
+      const interval = setInterval(() => {
+        setElapsedTime(Date.now() - executionStartTime);
+      }, 100);
+      
+      return () => clearInterval(interval);
+    } else {
+      setElapsedTime(0);
+    }
+  }, [isLoading, executionStartTime]);
 
   // Focus and select input only when starting to edit a NEW cell
   useEffect(() => {
@@ -81,6 +108,11 @@ const ResultsTable: React.FC<ResultsTableProps> = ({
       return () => clearTimeout(timeout);
     }
   }, [cellStatuses]);
+
+  // Clear selection when results change
+  useEffect(() => {
+    setSelectedRecords(new Set());
+  }, [results]);
 
   // Get field metadata for a column
   const getFieldMetadata = useCallback((column: string): SalesforceField | undefined => {
@@ -342,6 +374,45 @@ const ResultsTable: React.FC<ResultsTableProps> = ({
     return value;
   };
 
+  // Toggle record selection
+  const toggleRecordSelection = (recordId: string) => {
+    setSelectedRecords(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(recordId)) {
+        newSet.delete(recordId);
+      } else {
+        newSet.add(recordId);
+      }
+      return newSet;
+    });
+  };
+
+  // Toggle all records selection
+  const toggleAllSelection = () => {
+    if (!results) return;
+    
+    if (selectedRecords.size === results.length) {
+      // Deselect all
+      setSelectedRecords(new Set());
+    } else {
+      // Select all
+      setSelectedRecords(new Set(results.map(r => r.Id).filter(Boolean)));
+    }
+  };
+
+  // Get selected records data
+  const getSelectedRecordsData = (): Record<string, any>[] => {
+    if (!results) return [];
+    return results.filter(r => r.Id && selectedRecords.has(r.Id));
+  };
+
+  // Format elapsed time for display
+  const formatElapsedTime = (ms: number): string => {
+    const seconds = Math.floor(ms / 1000);
+    const tenths = Math.floor((ms % 1000) / 100);
+    return `${seconds}.${tenths}s`;
+  };
+
   // Loading state
   if (isLoading) {
     return (
@@ -351,7 +422,17 @@ const ResultsTable: React.FC<ResultsTableProps> = ({
             <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
             <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
           </svg>
-          <p className="text-discord-text-muted">Executing query...</p>
+          <p className="text-discord-text-muted">
+            Executing query...{executionStartTime ? ` (${formatElapsedTime(elapsedTime)})` : ''}
+          </p>
+          {onCancelQuery && (
+            <button
+              onClick={onCancelQuery}
+              className="mt-4 px-4 py-2 text-sm bg-discord-lighter hover:bg-discord-lightest text-discord-text rounded transition-colors"
+            >
+              Cancel
+            </button>
+          )}
         </div>
       </div>
     );
@@ -415,7 +496,12 @@ const ResultsTable: React.FC<ResultsTableProps> = ({
           <span className="text-sm text-discord-text-muted">
             {totalRecords.toLocaleString()} record{totalRecords !== 1 ? 's' : ''}
           </span>
-          {objectDescription && !disableEditing && (
+          {selectedRecords.size > 0 && (
+            <span className="text-sm text-discord-accent font-medium">
+              {selectedRecords.size} selected
+            </span>
+          )}
+          {objectDescription && !disableEditing && selectedRecords.size === 0 && (
             <span className="text-xs text-discord-text-muted bg-discord-lighter px-2 py-0.5 rounded">
               Double-click editable cells to edit inline
             </span>
@@ -431,6 +517,17 @@ const ResultsTable: React.FC<ResultsTableProps> = ({
         </div>
 
         <div className="flex items-center gap-2">
+          {selectedRecords.size > 0 && (
+            <button
+              onClick={() => setShowMigrationModal(true)}
+              className="btn btn-primary text-sm flex items-center gap-2"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+              </svg>
+              Push to Another Org
+            </button>
+          )}
           <button
             onClick={onExportCsv}
             className="btn btn-secondary text-sm flex items-center gap-2"
@@ -448,6 +545,14 @@ const ResultsTable: React.FC<ResultsTableProps> = ({
         <table className="data-table">
           <thead>
             <tr>
+              <th className="w-10 text-center">
+                <input
+                  type="checkbox"
+                  checked={results?.length > 0 && selectedRecords.size === results.length}
+                  onChange={toggleAllSelection}
+                  className="w-4 h-4 rounded border-discord-darker bg-discord-dark text-discord-accent focus:ring-discord-accent"
+                />
+              </th>
               <th className="w-12 text-center">#</th>
               {columns.map((column) => {
                 const canEdit = !disableEditing && isFieldEditable(column);
@@ -484,7 +589,19 @@ const ResultsTable: React.FC<ResultsTableProps> = ({
           </thead>
           <tbody>
             {sortedResults?.map((record, index) => (
-              <tr key={record.Id || index}>
+              <tr 
+                key={record.Id || index}
+                className={selectedRecords.has(record.Id) ? 'bg-discord-accent/10' : ''}
+              >
+                <td className="text-center">
+                  <input
+                    type="checkbox"
+                    checked={selectedRecords.has(record.Id)}
+                    onChange={() => record.Id && toggleRecordSelection(record.Id)}
+                    disabled={!record.Id}
+                    className="w-4 h-4 rounded border-discord-darker bg-discord-dark text-discord-accent focus:ring-discord-accent disabled:opacity-50"
+                  />
+                </td>
                 <td className="text-center text-discord-text-muted text-xs">
                   {index + 1}
                 </td>
@@ -534,6 +651,15 @@ const ResultsTable: React.FC<ResultsTableProps> = ({
           </tbody>
         </table>
       </div>
+
+      {/* Migration Modal */}
+      <RecordMigrationModal
+        isOpen={showMigrationModal}
+        onClose={() => setShowMigrationModal(false)}
+        selectedRecords={getSelectedRecordsData()}
+        objectName={getObjectName()}
+        sourceOrgUrl={sourceOrgUrl}
+      />
     </div>
   );
 };

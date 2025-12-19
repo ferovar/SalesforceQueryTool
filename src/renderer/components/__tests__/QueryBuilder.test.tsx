@@ -54,6 +54,8 @@ describe('QueryBuilder', () => {
     onExecuteQuery: jest.fn(),
     isLoading: false,
     isExecuting: false,
+    selectedLimit: 100,
+    onLimitChange: jest.fn(),
   };
 
   describe('rendering', () => {
@@ -202,12 +204,8 @@ describe('QueryBuilder', () => {
       const includeDeletedButton = screen.getByRole('button', { name: /include deleted/i });
       await user.click(includeDeletedButton);
 
-      // Execute query
-      const executeButton = screen.getByRole('button', { name: /run query/i });
-      await user.click(executeButton);
-
-      // Should have been called with true for includeDeleted
-      expect(onExecuteQuery).toHaveBeenCalledWith(true);
+      // Should have been called with true for includeDeleted and the selected limit
+      expect(onExecuteQuery).toHaveBeenCalledWith(true, 100);
     });
   });
 });

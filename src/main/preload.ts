@@ -72,4 +72,39 @@ contextBridge.exposeInMainWorld('electronAPI', {
     clear: () => ipcRenderer.invoke('history:clear'),
     delete: (entryId: string) => ipcRenderer.invoke('history:delete', entryId),
   },
+
+  // Data migration operations
+  migration: {
+    connectTargetOrg: (options: { isSandbox: boolean; label: string; clientId: string }) =>
+      ipcRenderer.invoke('migration:connectTargetOrg', options),
+    
+    connectWithSavedOAuth: (savedOAuthId: string) =>
+      ipcRenderer.invoke('migration:connectWithSavedOAuth', savedOAuthId),
+    connectWithSavedCredentials: (username: string) =>
+      ipcRenderer.invoke('migration:connectWithSavedCredentials', username),
+    
+    getTargetOrgs: () => ipcRenderer.invoke('migration:getTargetOrgs'),
+    
+    disconnectTargetOrg: (connectionId: string) =>
+      ipcRenderer.invoke('migration:disconnectTargetOrg', connectionId),
+    
+    getRelationships: (objectName: string) =>
+      ipcRenderer.invoke('migration:getRelationships', objectName),
+    
+    analyzeRecords: (params: {
+      objectName: string;
+      records: Record<string, any>[];
+      relationshipConfig: { fieldName: string; include: boolean; referenceTo: string }[];
+    }) => ipcRenderer.invoke('migration:analyzeRecords', params),
+    
+    executeMigration: (params: {
+      targetOrgId: string;
+      objectOrder: string[];
+      recordsByObject: Record<string, Record<string, any>[]>;
+      relationshipRemapping: { objectName: string; fieldName: string; originalId: string; recordIndex: number }[];
+    }) => ipcRenderer.invoke('migration:executeMigration', params),
+    
+    getChildRelationships: (objectName: string) =>
+      ipcRenderer.invoke('migration:getChildRelationships', objectName),
+  },
 });

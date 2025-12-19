@@ -56,6 +56,47 @@ export interface ElectronAPI {
     clear: () => Promise<{ success: boolean }>;
     delete: (entryId: string) => Promise<{ success: boolean }>;
   };
+
+  migration: {
+    connectTargetOrg: (options: { isSandbox: boolean; label: string; clientId: string }) => 
+      Promise<{ success: boolean; data?: { id: string; data: { userId: string; organizationId: string; instanceUrl: string; username: string } }; error?: string }>;
+    
+    connectWithSavedOAuth: (savedOAuthId: string) =>
+      Promise<{ success: boolean; data?: { id: string; data: { userId: string; organizationId: string; instanceUrl: string; username: string } }; error?: string }>;
+    
+    connectWithSavedCredentials: (username: string) =>
+      Promise<{ success: boolean; data?: { id: string; data: { userId: string; organizationId: string; instanceUrl: string; username: string } }; error?: string }>;
+    
+    getTargetOrgs: () => Promise<TargetOrg[]>;
+    
+    disconnectTargetOrg: (connectionId: string) => Promise<{ success: boolean; error?: string }>;
+    
+    getRelationships: (objectName: string) => Promise<{ 
+      success: boolean; 
+      data?: { 
+        relationships: FieldRelationship[]; 
+        defaultConfig: RelationshipConfig[];
+        excludedFields: string[];
+        excludedObjects: string[];
+      }; 
+      error?: string 
+    }>;
+    
+    analyzeRecords: (params: {
+      objectName: string;
+      records: Record<string, any>[];
+      relationshipConfig: RelationshipConfig[];
+    }) => Promise<{ success: boolean; data?: MigrationPlanSummary; error?: string }>;
+    
+    executeMigration: (params: {
+      targetOrgId: string;
+      objectOrder: string[];
+      recordsByObject: Record<string, Record<string, any>[]>;
+      relationshipRemapping: { objectName: string; fieldName: string; originalId: string; recordIndex: number }[];
+    }) => Promise<{ success: boolean; data?: MigrationResult; error?: string }>;
+    
+    getChildRelationships: (objectName: string) => Promise<{ success: boolean; data?: ChildRelationship[]; error?: string }>;
+  };
 }
 
 export interface SalesforceObject {
@@ -128,6 +169,51 @@ export interface QueryHistoryEntry {
   recordCount: number;
   success: boolean;
   error?: string;
+}
+
+// Migration types
+export interface TargetOrg {
+  id: string;
+  label: string;
+  instanceUrl: string;
+  username: string;
+  isSandbox: boolean;
+}
+
+export interface FieldRelationship {
+  fieldName: string;
+  fieldLabel: string;
+  referenceTo: string[];
+  relationshipName: string | null;
+  isRequired: boolean;
+  isCreateable: boolean;
+}
+
+export interface RelationshipConfig {
+  fieldName: string;
+  include: boolean;
+  referenceTo: string;
+}
+
+export interface MigrationPlanSummary {
+  objectOrder: string[];
+  recordsByObject: Record<string, Record<string, any>[]>;
+  totalRecords: number;
+  objectCounts: Record<string, number>;
+  relationshipRemapping: { objectName: string; fieldName: string; originalId: string; recordIndex: number }[];
+}
+
+export interface MigrationResult {
+  results: { objectName: string; inserted: number; failed: number; errors: string[] }[];
+  idMapping: Record<string, string>;
+  totalInserted: number;
+  totalFailed: number;
+}
+
+export interface ChildRelationship {
+  childSObject: string;
+  field: string;
+  relationshipName: string;
 }
 
 declare global {

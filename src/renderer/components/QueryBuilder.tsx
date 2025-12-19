@@ -2,14 +2,27 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import type { SalesforceObject, ObjectDescription, SalesforceField, SavedQuery } from '../types/electron.d';
 import SoqlHighlighter from './SoqlHighlighter';
 
+// Available limit options
+const LIMIT_OPTIONS = [
+  { value: 0, label: 'No Limit' },
+  { value: 50, label: '50' },
+  { value: 100, label: '100' },
+  { value: 200, label: '200' },
+  { value: 500, label: '500' },
+  { value: 1000, label: '1000' },
+  { value: 2000, label: '2000' },
+];
+
 interface QueryBuilderProps {
   selectedObject: SalesforceObject;
   objectDescription: ObjectDescription | null;
   query: string;
   onQueryChange: (query: string) => void;
-  onExecuteQuery: (includeDeleted: boolean) => void;
+  onExecuteQuery: (includeDeleted: boolean, limit: number) => void;
   isLoading: boolean;
   isExecuting: boolean;
+  selectedLimit: number;
+  onLimitChange: (limit: number) => void;
 }
 
 interface AutocompleteState {
@@ -29,6 +42,8 @@ const QueryBuilder: React.FC<QueryBuilderProps> = ({
   onExecuteQuery,
   isLoading,
   isExecuting,
+  selectedLimit,
+  onLimitChange,
 }) => {
   const [showFieldPicker, setShowFieldPicker] = useState(false);
   const [selectedFields, setSelectedFields] = useState<Set<string>>(new Set());
@@ -259,13 +274,13 @@ const QueryBuilder: React.FC<QueryBuilderProps> = ({
           break;
       }
     } else if (e.key === 'Enter' && e.ctrlKey) {
-      // Keep Ctrl+Enter to run query - use onExecuteQuery directly
+      // Keep Ctrl+Enter to run query
       e.preventDefault();
       if (query.trim()) {
-        onExecuteQuery(false);
+        onExecuteQuery(false, selectedLimit);
       }
     }
-  }, [autocomplete, applySuggestion, query, onExecuteQuery]);
+  }, [autocomplete, applySuggestion, query, selectedLimit, onExecuteQuery]);
 
   // Scroll selected item into view
   useEffect(() => {
@@ -356,9 +371,39 @@ const QueryBuilder: React.FC<QueryBuilderProps> = ({
     setShowActiveQueryDropdown(false);
   };
 
+  // Parse LIMIT from a query string
+  const parseLimitFromQuery = (queryStr: string): number | null => {
+    const limitMatch = queryStr.match(/\bLIMIT\s+(\d+)\s*$/i);
+    if (limitMatch) {
+      return parseInt(limitMatch[1], 10);
+    }
+    return null;
+  };
+
+  // Remove LIMIT clause from a query string
+  const removeLimitFromQuery = (queryStr: string): string => {
+    return queryStr.replace(/\s*\bLIMIT\s+\d+\s*$/i, '');
+  };
+
   // Handle load saved query
   const handleLoadQuery = (savedQuery: SavedQuery) => {
-    onQueryChange(savedQuery.query);
+    // Parse limit from saved query and update dropdown
+    const limit = parseLimitFromQuery(savedQuery.query);
+    if (limit !== null) {
+      // Find closest matching limit option
+      const matchingOption = LIMIT_OPTIONS.find(opt => opt.value === limit);
+      if (matchingOption) {
+        onLimitChange(limit);
+      } else {
+        // If exact limit not in options, keep current selection
+        onLimitChange(limit);
+      }
+      // Remove LIMIT from query text
+      onQueryChange(removeLimitFromQuery(savedQuery.query));
+    } else {
+      onLimitChange(0); // No limit
+      onQueryChange(savedQuery.query);
+    }
     setActiveSavedQuery(savedQuery);
     setShowSavedQueriesDropdown(false);
   };
@@ -375,9 +420,11 @@ const QueryBuilder: React.FC<QueryBuilderProps> = ({
   };
 
   // Update last run time when query is executed
-  const handleExecuteWithTracking = async (includeDeleted: boolean) => {
+  const handleExecuteWithTracking = useCallback(async (includeDeleted: boolean) => {
+    // Build full query with limit for comparison
+    const fullQuery = selectedLimit > 0 ? `${query}\nLIMIT ${selectedLimit}` : query;
     // Find if current query matches a saved query
-    const matchingQuery = savedQueries.find(sq => sq.query === query);
+    const matchingQuery = savedQueries.find(sq => sq.query === fullQuery || sq.query === query);
     if (matchingQuery) {
       await window.electronAPI.queries.updateLastRun(matchingQuery.id);
       // Update local state
@@ -387,8 +434,8 @@ const QueryBuilder: React.FC<QueryBuilderProps> = ({
           : q
       ));
     }
-    onExecuteQuery(includeDeleted);
-  };
+    onExecuteQuery(includeDeleted, selectedLimit);
+  }, [query, selectedLimit, savedQueries, onExecuteQuery]);
 
   // Parse fields from current query
   const parseFieldsFromQuery = (queryStr: string): Set<string> => {
@@ -856,7 +903,7 @@ const QueryBuilder: React.FC<QueryBuilderProps> = ({
         )}
       </div>
 
-      {/* Action buttons */}
+      {/* Action buttons and Limit selector */}
       <div className="flex items-center gap-3">
         <button
           onClick={() => handleExecuteWithTracking(false)}
@@ -893,6 +940,22 @@ const QueryBuilder: React.FC<QueryBuilderProps> = ({
           </svg>
           Include Deleted
         </button>
+
+        {/* Limit Dropdown */}
+        <div className="flex items-center gap-2">
+          <label className="text-sm text-discord-text-muted">Limit:</label>
+          <select
+            value={selectedLimit}
+            onChange={(e) => onLimitChange(parseInt(e.target.value, 10))}
+            className="bg-discord-dark border border-discord-lighter rounded px-2 py-1.5 text-sm text-discord-text focus:outline-none focus:border-discord-accent"
+          >
+            {LIMIT_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </div>
 
         <div className="flex-1" />
 
