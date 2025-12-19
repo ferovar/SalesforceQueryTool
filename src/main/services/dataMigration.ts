@@ -122,22 +122,60 @@ export class DataMigrationService {
   }
 
   /**
+   * Re-query records with all createable fields to ensure complete data migration
+   */
+  async fetchFullRecords(objectName: string, recordIds: string[]): Promise<Record<string, any>[]> {
+    if (recordIds.length === 0) return [];
+    
+    const description = await this.getObjectDescription(objectName);
+    
+    // Get all createable fields plus Id and RecordTypeId (for mapping)
+    const fieldsToQuery = description.fields
+      .filter((f: any) => f.createable || f.name === 'Id' || f.name === 'RecordTypeId')
+      .map((f: any) => f.name);
+    
+    // Query in batches to avoid query length limits
+    const batchSize = 200;
+    const allRecords: Record<string, any>[] = [];
+    
+    for (let i = 0; i < recordIds.length; i += batchSize) {
+      const batchIds = recordIds.slice(i, i + batchSize);
+      const query = `SELECT ${fieldsToQuery.join(', ')} FROM ${objectName} WHERE Id IN ('${batchIds.join("','")}')`;
+      const result = await this.sourceConnection.query(query);
+      allRecords.push(...(result.records as Record<string, any>[]));
+    }
+    
+    return allRecords;
+  }
+
+  /**
    * Analyze records and find all related records that need to be migrated
    */
   async analyzeRelationships(
     objectName: string,
     records: Record<string, any>[],
     relationshipConfig: RelationshipConfig[],
-    visitedIds: Set<string> = new Set()
+    visitedIds: Set<string> = new Set(),
+    isTopLevel: boolean = true
   ): Promise<RecordWithRelationships[]> {
     const result: RecordWithRelationships[] = [];
     const description = await this.getObjectDescription(objectName);
+    
+    // If this is the top-level call, re-query records with ALL createable fields
+    // This ensures we migrate all data, not just the fields in the original query
+    let fullRecords = records;
+    if (isTopLevel && records.length > 0) {
+      const recordIds = records.map(r => r.Id).filter(id => id);
+      if (recordIds.length > 0) {
+        fullRecords = await this.fetchFullRecords(objectName, recordIds);
+      }
+    }
     
     // Get relationships that should include related records (action === 'include')
     // Note: 'matchByExternalId' doesn't need to fetch related records - lookup happens at migration time
     const includedRelationships = relationshipConfig.filter(r => r.action === 'include');
 
-    for (const record of records) {
+    for (const record of fullRecords) {
       const recordId = record.Id;
       
       // Skip if already visited (prevent circular references)
@@ -175,7 +213,8 @@ export class DataMigrationService {
               relConfig.referenceTo,
               relatedResult.records as Record<string, any>[],
               nestedConfig,
-              visitedIds
+              visitedIds,
+              false // Not top-level - these records already have all fields
             );
 
             recordWithRels.relationships.push({
