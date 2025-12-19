@@ -632,6 +632,33 @@ ipcMain.handle('migration:executeMigration', async (_event, params: {
       const records = recordsByObject[objectName] || [];
       if (records.length === 0) continue;
       
+      // Compound/read-only fields that should be excluded from insert/update
+      // These are auto-calculated by Salesforce and cannot be set directly
+      const compoundReadOnlyFields = new Set([
+        'Name',           // Compound field on Contact, Lead (FirstName + LastName), read-only on Person objects
+        'PhotoUrl',       // System-calculated
+        'IsDeleted',      // System field
+        'CreatedDate',    // System audit field
+        'CreatedById',    // System audit field
+        'LastModifiedDate', // System audit field
+        'LastModifiedById', // System audit field
+        'SystemModstamp', // System field
+        'LastActivityDate', // System-calculated
+        'LastViewedDate', // System-calculated
+        'LastReferencedDate', // System-calculated
+        'MasterRecordId', // Only used in merge scenarios
+      ]);
+      
+      // Object-specific compound fields
+      const objectCompoundFields: Record<string, Set<string>> = {
+        'Contact': new Set(['Name', 'MailingAddress', 'OtherAddress']),
+        'Lead': new Set(['Name', 'Address']),
+        'Account': new Set(['BillingAddress', 'ShippingAddress']),
+        'User': new Set(['Name', 'Address']),
+      };
+      
+      const objectSpecificExclusions = objectCompoundFields[objectName] || new Set();
+      
       // Prepare records: remap relationship IDs and remove internal fields
       const preparedRecords = records.map(record => {
         const prepared: Record<string, any> = {};
@@ -639,6 +666,11 @@ ipcMain.handle('migration:executeMigration', async (_event, params: {
         for (const [key, value] of Object.entries(record)) {
           // Skip internal tracking fields
           if (key === '_originalId' || key === '_tempId') {
+            continue;
+          }
+          
+          // Skip compound/read-only fields
+          if (compoundReadOnlyFields.has(key) || objectSpecificExclusions.has(key)) {
             continue;
           }
           
