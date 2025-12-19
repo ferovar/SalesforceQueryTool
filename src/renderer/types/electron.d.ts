@@ -93,9 +93,16 @@ export interface ElectronAPI {
       objectOrder: string[];
       recordsByObject: Record<string, Record<string, any>[]>;
       relationshipRemapping: { objectName: string; fieldName: string; originalId: string; recordIndex: number }[];
+      relationshipConfig?: RelationshipConfig[]; // For matchByExternalId lookups
     }) => Promise<{ success: boolean; data?: MigrationResult; error?: string }>;
     
     getChildRelationships: (objectName: string) => Promise<{ success: boolean; data?: ChildRelationship[]; error?: string }>;
+    
+    getExternalIdFields: (objectName: string) => Promise<{ 
+      success: boolean; 
+      data?: ExternalIdField[]; 
+      error?: string 
+    }>;
   };
 }
 
@@ -191,8 +198,9 @@ export interface FieldRelationship {
 
 export interface RelationshipConfig {
   fieldName: string;
-  include: boolean;
+  action: 'include' | 'skip' | 'matchByExternalId';
   referenceTo: string;
+  externalIdField?: string; // For matchByExternalId action
 }
 
 export interface MigrationPlanSummary {
@@ -214,6 +222,14 @@ export interface ChildRelationship {
   childSObject: string;
   field: string;
   relationshipName: string;
+}
+
+export interface ExternalIdField {
+  name: string;
+  label: string;
+  type: string;
+  isExternalId: boolean;
+  isUnique: boolean;
 }
 
 declare global {

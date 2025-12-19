@@ -494,12 +494,77 @@ ipcMain.handle('migration:executeMigration', async (_event, params: {
   objectOrder: string[];
   recordsByObject: Record<string, Record<string, any>[]>;
   relationshipRemapping: { objectName: string; fieldName: string; originalId: string; recordIndex: number }[];
+  relationshipConfig?: RelationshipConfig[];
 }) => {
   try {
-    const { targetOrgId, objectOrder, recordsByObject, relationshipRemapping } = params;
+    const { targetOrgId, objectOrder, recordsByObject, relationshipRemapping, relationshipConfig } = params;
     
     const idMapping = new Map<string, string>();
     const results: { objectName: string; inserted: number; failed: number; errors: string[] }[] = [];
+    
+    // Get source connection for queries
+    const sourceConnection = salesforceService.getConnection();
+    
+    // Handle matchByExternalId lookups - query target org to find matching records
+    const externalIdMappings = relationshipConfig?.filter(c => c.action === 'matchByExternalId' && c.externalIdField) || [];
+    
+    if (externalIdMappings.length > 0 && sourceConnection) {
+      for (const config of externalIdMappings) {
+        // Collect all unique source IDs for this relationship field across all records
+        const sourceIds = new Set<string>();
+        for (const records of Object.values(recordsByObject)) {
+          for (const record of records) {
+            const value = record[config.fieldName];
+            if (value && typeof value === 'string') {
+              sourceIds.add(value);
+            }
+          }
+        }
+        
+        if (sourceIds.size === 0) continue;
+        
+        try {
+          // Query source org to get the external ID values for these records
+          const sourceQuery = `SELECT Id, ${config.externalIdField} FROM ${config.referenceTo} WHERE Id IN ('${Array.from(sourceIds).join("','")}')`;
+          const sourceResult = await sourceConnection.query(sourceQuery);
+          
+          // Build a map of source ID -> external ID value
+          const sourceIdToExternalValue = new Map<string, any>();
+          for (const record of sourceResult.records as any[]) {
+            if (record[config.externalIdField!] !== null && record[config.externalIdField!] !== undefined) {
+              sourceIdToExternalValue.set(record.Id, record[config.externalIdField!]);
+            }
+          }
+          
+          // Get unique external ID values to query target
+          const externalValues = new Set(sourceIdToExternalValue.values());
+          if (externalValues.size === 0) continue;
+          
+          // Query target org to find records with matching external ID values
+          const escapedValues = Array.from(externalValues).map(v => 
+            typeof v === 'string' ? `'${v.replace(/'/g, "\\'")}'` : v
+          );
+          const targetQuery = `SELECT Id, ${config.externalIdField} FROM ${config.referenceTo} WHERE ${config.externalIdField} IN (${escapedValues.join(',')})`;
+          const targetResult = await orgConnectionManager.executeQuery(targetOrgId, targetQuery);
+          
+          // Build a map of external ID value -> target record ID
+          const externalValueToTargetId = new Map<any, string>();
+          for (const record of targetResult as any[]) {
+            externalValueToTargetId.set(record[config.externalIdField!], record.Id);
+          }
+          
+          // Now map source IDs to target IDs through the external ID values
+          for (const [sourceId, externalValue] of sourceIdToExternalValue) {
+            const targetId = externalValueToTargetId.get(externalValue);
+            if (targetId) {
+              idMapping.set(sourceId, targetId);
+            }
+          }
+        } catch (err) {
+          console.error(`Error performing external ID lookup for ${config.fieldName}:`, err);
+        }
+      }
+    }
     
     // Build RecordType mapping from target org
     // Maps source RecordTypeId -> target RecordTypeId based on SObjectType:DeveloperName
@@ -645,6 +710,36 @@ ipcMain.handle('migration:getChildRelationships', async (_event, objectName: str
     
     const childRelationships = await dataMigrationService.getChildRelationships(objectName);
     return { success: true, data: childRelationships };
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('migration:getExternalIdFields', async (_event, objectName: string) => {
+  try {
+    const connection = salesforceService.getConnection();
+    if (!connection) {
+      return { success: false, error: 'Not connected to source org' };
+    }
+    
+    const description = await connection.describe(objectName);
+    
+    // Find fields that are external IDs (idLookup = true, externalId = true) or unique identifiers
+    const externalIdFields = description.fields
+      .filter((field: any) => 
+        field.externalId === true || 
+        (field.idLookup === true && field.name !== 'Id') || // Id is idLookup but not useful here
+        field.name === 'Name' // Always include Name as a common matching field
+      )
+      .map((field: any) => ({
+        name: field.name,
+        label: field.label,
+        type: field.type,
+        isExternalId: field.externalId === true,
+        isUnique: field.unique === true,
+      }));
+    
+    return { success: true, data: externalIdFields };
   } catch (error: any) {
     return { success: false, error: error.message };
   }

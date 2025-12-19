@@ -11,8 +11,9 @@ export interface FieldRelationship {
 
 export interface RelationshipConfig {
   fieldName: string;
-  include: boolean;
+  action: 'include' | 'skip' | 'matchByExternalId';
   referenceTo: string; // The specific object to reference (when multiple options)
+  externalIdField?: string; // For matchByExternalId action - the external ID field to match on
 }
 
 export interface RecordWithRelationships {
@@ -132,8 +133,9 @@ export class DataMigrationService {
     const result: RecordWithRelationships[] = [];
     const description = await this.getObjectDescription(objectName);
     
-    // Get included relationships
-    const includedRelationships = relationshipConfig.filter(r => r.include);
+    // Get relationships that should include related records (action === 'include')
+    // Note: 'matchByExternalId' doesn't need to fetch related records - lookup happens at migration time
+    const includedRelationships = relationshipConfig.filter(r => r.action === 'include');
 
     for (const record of records) {
       const recordId = record.Id;
@@ -201,12 +203,15 @@ export class DataMigrationService {
     
     return relationships
       .filter(rel => rel.isCreateable) // Only include createable fields
-      .map(rel => ({
-        fieldName: rel.fieldName,
-        include: !DEFAULT_EXCLUDED_FIELDS.includes(rel.fieldName) &&
-                 !rel.referenceTo.some(obj => DEFAULT_EXCLUDED_OBJECTS.includes(obj)),
-        referenceTo: rel.referenceTo[0], // Default to first reference object
-      }));
+      .map(rel => {
+        const isExcluded = DEFAULT_EXCLUDED_FIELDS.includes(rel.fieldName) ||
+                          rel.referenceTo.some(obj => DEFAULT_EXCLUDED_OBJECTS.includes(obj));
+        return {
+          fieldName: rel.fieldName,
+          action: isExcluded ? 'skip' as const : 'include' as const,
+          referenceTo: rel.referenceTo[0], // Default to first reference object
+        };
+      });
   }
 
   /**

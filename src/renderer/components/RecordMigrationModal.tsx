@@ -6,7 +6,8 @@ import type {
   MigrationPlanSummary,
   MigrationResult,
   SavedOAuthLogin,
-  SavedLogin
+  SavedLogin,
+  ExternalIdField
 } from '../types/electron.d';
 
 // Unified saved connection type
@@ -54,6 +55,7 @@ const RecordMigrationModal: React.FC<RecordMigrationModalProps> = ({
   const [excludedFields, setExcludedFields] = useState<string[]>([]);
   const [excludedObjects, setExcludedObjects] = useState<string[]>([]);
   const [isLoadingRelationships, setIsLoadingRelationships] = useState(false);
+  const [externalIdFieldsCache, setExternalIdFieldsCache] = useState<Record<string, ExternalIdField[]>>({});
   
   // Migration plan
   const [migrationPlan, setMigrationPlan] = useState<MigrationPlanSummary | null>(null);
@@ -127,21 +129,29 @@ const RecordMigrationModal: React.FC<RecordMigrationModalProps> = ({
         setExcludedFields(result.data.excludedFields);
         setExcludedObjects(result.data.excludedObjects);
         
-        // Auto-deselect fields that are blank for all selected records
-        const configWithAutoDeselect = result.data.defaultConfig.map(config => {
+        // Convert default config to use new action format and auto-skip blank fields
+        const configWithActions = result.data.defaultConfig.map(config => {
           // Check if this field is blank across all selected records
           const allBlank = selectedRecords.every(record => {
             const value = record[config.fieldName];
             return value === null || value === undefined || value === '';
           });
           
+          // Convert include boolean to action
+          // If blank, skip. Otherwise use 'include' if it was included, 'skip' if not
+          const action: 'include' | 'skip' | 'matchByExternalId' = 
+            allBlank ? 'skip' : 
+            (config.action === 'include' || (config as any).include === true) ? 'include' : 'skip';
+          
           return {
-            ...config,
-            include: allBlank ? false : config.include
+            fieldName: config.fieldName,
+            action,
+            referenceTo: config.referenceTo,
+            externalIdField: config.externalIdField,
           };
         });
         
-        setRelationshipConfig(configWithAutoDeselect);
+        setRelationshipConfig(configWithActions);
       }
     } catch (err) {
       console.error('Error loading relationships:', err);
@@ -193,11 +203,46 @@ const RecordMigrationModal: React.FC<RecordMigrationModalProps> = ({
   };
 
   const handleRelationshipToggle = (fieldName: string) => {
+    // Legacy toggle - cycle through skip -> include
     setRelationshipConfig(prev => 
       prev.map(config => 
         config.fieldName === fieldName 
-          ? { ...config, include: !config.include }
+          ? { ...config, action: config.action === 'include' ? 'skip' : 'include' }
           : config
+      )
+    );
+  };
+
+  const handleActionChange = async (fieldName: string, action: 'include' | 'skip' | 'matchByExternalId') => {
+    const rel = relationships.find(r => r.fieldName === fieldName);
+    const config = relationshipConfig.find(c => c.fieldName === fieldName);
+    
+    if (action === 'matchByExternalId' && rel && config) {
+      // Load external ID fields for this object if not cached
+      const targetObject = config.referenceTo || rel.referenceTo[0];
+      if (!externalIdFieldsCache[targetObject]) {
+        const result = await window.electronAPI.migration.getExternalIdFields(targetObject);
+        if (result.success && result.data) {
+          setExternalIdFieldsCache(prev => ({ ...prev, [targetObject]: result.data! }));
+        }
+      }
+    }
+    
+    setRelationshipConfig(prev => 
+      prev.map(c => 
+        c.fieldName === fieldName 
+          ? { ...c, action, externalIdField: action === 'matchByExternalId' ? c.externalIdField : undefined }
+          : c
+      )
+    );
+  };
+
+  const handleExternalIdFieldChange = (fieldName: string, externalIdField: string) => {
+    setRelationshipConfig(prev => 
+      prev.map(c => 
+        c.fieldName === fieldName 
+          ? { ...c, externalIdField }
+          : c
       )
     );
   };
@@ -237,6 +282,7 @@ const RecordMigrationModal: React.FC<RecordMigrationModalProps> = ({
         objectOrder: migrationPlan.objectOrder,
         recordsByObject: migrationPlan.recordsByObject,
         relationshipRemapping: migrationPlan.relationshipRemapping,
+        relationshipConfig, // Pass config for matchByExternalId lookups
       });
 
       if (result.success && result.data) {
@@ -473,8 +519,10 @@ const RecordMigrationModal: React.FC<RecordMigrationModalProps> = ({
               <div>
                 <h3 className="text-lg font-medium text-white mb-2">Configure Relationships</h3>
                 <p className="text-sm text-discord-text-muted mb-4">
-                  Select which related records should be included in the migration. 
-                  Parent records will be created first, then linked to the {objectName} records.
+                  For each relationship field, choose how to handle related records:
+                  <span className="text-discord-accent"> Include</span> to create new records,
+                  <span className="text-yellow-400"> Match by External ID</span> to lookup existing records, or
+                  <span className="text-discord-text-muted"> Skip</span> to ignore.
                 </p>
 
                 {isLoadingRelationships ? (
@@ -501,25 +549,22 @@ const RecordMigrationModal: React.FC<RecordMigrationModalProps> = ({
                         return value === null || value === undefined || value === '';
                       });
 
+                      const targetObject = config.referenceTo || rel.referenceTo[0];
+                      const externalIdFields = externalIdFieldsCache[targetObject] || [];
+
                       return (
                         <div 
                           key={config.fieldName}
-                          className={`flex items-center justify-between p-4 rounded-lg border cursor-pointer transition-colors ${
-                            config.include 
+                          className={`p-4 rounded-lg border transition-colors ${
+                            config.action === 'include' 
                               ? 'bg-discord-accent/10 border-discord-accent/30' 
-                              : 'bg-discord-medium border-discord-darker hover:border-discord-muted'
-                          } ${isAutoExcluded ? 'opacity-60 cursor-not-allowed' : ''}`}
-                          onClick={() => !isAutoExcluded && handleRelationshipToggle(config.fieldName)}
+                              : config.action === 'matchByExternalId'
+                              ? 'bg-yellow-500/10 border-yellow-500/30'
+                              : 'bg-discord-medium border-discord-darker'
+                          } ${isAutoExcluded ? 'opacity-60' : ''}`}
                         >
-                          <div className="flex items-center gap-3">
-                            <input
-                              type="checkbox"
-                              checked={config.include}
-                              onChange={() => handleRelationshipToggle(config.fieldName)}
-                              disabled={isAutoExcluded}
-                              className="w-4 h-4 rounded border-discord-darker bg-discord-dark text-discord-accent focus:ring-discord-accent pointer-events-none"
-                            />
-                            <div>
+                          <div className="flex items-start justify-between gap-4">
+                            <div className="flex-1">
                               <div className="text-white font-medium">{rel.fieldLabel}</div>
                               <div className="text-sm text-discord-text-muted">
                                 {config.fieldName} → {rel.referenceTo.join(', ')}
@@ -537,33 +582,82 @@ const RecordMigrationModal: React.FC<RecordMigrationModalProps> = ({
                                 </div>
                               )}
                             </div>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            {rel.isRequired && (
-                              <span className="px-2 py-0.5 text-xs bg-red-500/20 text-red-400 rounded">
-                                Required
-                              </span>
-                            )}
-                            {rel.referenceTo.length > 1 && config.include && (
+                            <div className="flex items-center gap-2 flex-shrink-0">
+                              {rel.isRequired && (
+                                <span className="px-2 py-0.5 text-xs bg-red-500/20 text-red-400 rounded">
+                                  Required
+                                </span>
+                              )}
+                              {/* Action selector */}
                               <select
-                                value={config.referenceTo}
-                                onChange={(e) => {
-                                  setRelationshipConfig(prev =>
-                                    prev.map(c =>
-                                      c.fieldName === config.fieldName
-                                        ? { ...c, referenceTo: e.target.value }
-                                        : c
-                                    )
-                                  );
-                                }}
-                                className="px-2 py-1 bg-discord-darker border border-discord-darker rounded text-sm text-white [&>option]:bg-discord-darker [&>option]:text-white"
+                                value={config.action}
+                                onChange={(e) => handleActionChange(config.fieldName, e.target.value as 'include' | 'skip' | 'matchByExternalId')}
+                                disabled={isAutoExcluded}
+                                className="px-2 py-1 bg-discord-darker border border-discord-darker rounded text-sm text-white focus:border-discord-accent [&>option]:bg-discord-darker [&>option]:text-white"
                               >
-                                {rel.referenceTo.map(obj => (
-                                  <option key={obj} value={obj} className="bg-discord-darker text-white">{obj}</option>
-                                ))}
+                                <option value="skip">Skip</option>
+                                <option value="include">Include (Create New)</option>
+                                <option value="matchByExternalId">Match by External ID</option>
                               </select>
-                            )}
+                            </div>
                           </div>
+                          
+                          {/* Extra options based on action */}
+                          {config.action !== 'skip' && !isAutoExcluded && (
+                            <div className="mt-3 pt-3 border-t border-discord-darker/50 flex flex-wrap gap-3">
+                              {/* Object selector for polymorphic relationships */}
+                              {rel.referenceTo.length > 1 && (
+                                <div className="flex items-center gap-2">
+                                  <label className="text-xs text-discord-text-muted">Object:</label>
+                                  <select
+                                    value={config.referenceTo}
+                                    onChange={(e) => {
+                                      setRelationshipConfig(prev =>
+                                        prev.map(c =>
+                                          c.fieldName === config.fieldName
+                                            ? { ...c, referenceTo: e.target.value, externalIdField: undefined }
+                                            : c
+                                        )
+                                      );
+                                      // Clear cache for new object type if matchByExternalId
+                                      if (config.action === 'matchByExternalId') {
+                                        handleActionChange(config.fieldName, 'matchByExternalId');
+                                      }
+                                    }}
+                                    className="px-2 py-1 bg-discord-darker border border-discord-darker rounded text-sm text-white [&>option]:bg-discord-darker [&>option]:text-white"
+                                  >
+                                    {rel.referenceTo.map(obj => (
+                                      <option key={obj} value={obj}>{obj}</option>
+                                    ))}
+                                  </select>
+                                </div>
+                              )}
+                              
+                              {/* External ID field selector */}
+                              {config.action === 'matchByExternalId' && (
+                                <div className="flex items-center gap-2">
+                                  <label className="text-xs text-discord-text-muted">Match on:</label>
+                                  {externalIdFields.length === 0 ? (
+                                    <div className="text-xs text-yellow-400">Loading fields...</div>
+                                  ) : (
+                                    <select
+                                      value={config.externalIdField || ''}
+                                      onChange={(e) => handleExternalIdFieldChange(config.fieldName, e.target.value)}
+                                      className="px-2 py-1 bg-discord-darker border border-discord-darker rounded text-sm text-white [&>option]:bg-discord-darker [&>option]:text-white"
+                                    >
+                                      <option value="">Select field...</option>
+                                      {externalIdFields.map(field => (
+                                        <option key={field.name} value={field.name}>
+                                          {field.label} ({field.name})
+                                          {field.isExternalId ? ' ⭐' : ''}
+                                        </option>
+                                      ))}
+                                    </select>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          )}
                         </div>
                       );
                     })}

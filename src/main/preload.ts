@@ -94,7 +94,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     analyzeRecords: (params: {
       objectName: string;
       records: Record<string, any>[];
-      relationshipConfig: { fieldName: string; include: boolean; referenceTo: string }[];
+      relationshipConfig: { fieldName: string; action: 'include' | 'skip' | 'matchByExternalId'; referenceTo: string; externalIdField?: string }[];
     }) => ipcRenderer.invoke('migration:analyzeRecords', params),
     
     executeMigration: (params: {
@@ -102,9 +102,13 @@ contextBridge.exposeInMainWorld('electronAPI', {
       objectOrder: string[];
       recordsByObject: Record<string, Record<string, any>[]>;
       relationshipRemapping: { objectName: string; fieldName: string; originalId: string; recordIndex: number }[];
+      relationshipConfig?: { fieldName: string; action: 'include' | 'skip' | 'matchByExternalId'; referenceTo: string; externalIdField?: string }[];
     }) => ipcRenderer.invoke('migration:executeMigration', params),
     
     getChildRelationships: (objectName: string) =>
       ipcRenderer.invoke('migration:getChildRelationships', objectName),
+    
+    getExternalIdFields: (objectName: string) =>
+      ipcRenderer.invoke('migration:getExternalIdFields', objectName),
   },
 });
