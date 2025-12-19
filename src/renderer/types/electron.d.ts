@@ -25,6 +25,9 @@ export interface ElectronAPI {
     
     executeQuery: (query: string, includeDeleted: boolean) => Promise<{ success: boolean; data?: any[]; error?: string }>;
     
+    updateRecord: (objectName: string, recordId: string, fields: Record<string, any>) => 
+      Promise<{ success: boolean; data?: { success: boolean; id: string }; error?: string }>;
+    
     exportToCsv: (data: any[], filename: string) => Promise<{ success: boolean; data?: string; error?: string }>;
   };
   

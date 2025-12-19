@@ -12,7 +12,8 @@ const credentialsStore = new CredentialsStore();
 const queriesStore = new QueriesStore();
 const queryHistoryStore = new QueryHistoryStore();
 
-const isDev = process.env.NODE_ENV === 'development' || !app.isPackaged;
+// Check if we should use dev server - only if explicitly in development AND not in production mode
+const isDev = process.env.NODE_ENV !== 'production' && !app.isPackaged && process.env.VITE_DEV_SERVER_URL !== undefined;
 
 console.log('Starting Salesforce Query Tool...');
 console.log('isDev:', isDev);
@@ -234,6 +235,15 @@ ipcMain.handle('salesforce:executeQuery', async (_event, query: string, includeD
   try {
     const results = await salesforceService.executeQuery(query, includeDeleted);
     return { success: true, data: results };
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('salesforce:updateRecord', async (_event, objectName: string, recordId: string, fields: Record<string, any>) => {
+  try {
+    const result = await salesforceService.updateRecord(objectName, recordId, fields);
+    return { success: true, data: result };
   } catch (error: any) {
     return { success: false, error: error.message };
   }

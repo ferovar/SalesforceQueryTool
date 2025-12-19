@@ -1,4 +1,5 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useRef, useEffect, useCallback } from 'react';
+import type { ObjectDescription, SalesforceField } from '../types/electron.d';
 
 interface ResultsTableProps {
   results: any[] | null;
@@ -6,6 +7,21 @@ interface ResultsTableProps {
   error: string | null;
   totalRecords: number;
   onExportCsv: () => void;
+  objectDescription: ObjectDescription | null;
+  onRecordUpdate?: (recordId: string, field: string, newValue: any) => void;
+}
+
+interface EditingCell {
+  recordId: string;
+  column: string;
+  value: string;
+}
+
+interface CellStatus {
+  recordId: string;
+  column: string;
+  status: 'saving' | 'success' | 'error';
+  message?: string;
 }
 
 const ResultsTable: React.FC<ResultsTableProps> = ({
@@ -14,9 +30,71 @@ const ResultsTable: React.FC<ResultsTableProps> = ({
   error,
   totalRecords,
   onExportCsv,
+  objectDescription,
+  onRecordUpdate,
 }) => {
   const [sortColumn, setSortColumn] = useState<string | null>(null);
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
+  const [editingCell, setEditingCell] = useState<EditingCell | null>(null);
+  const [cellStatuses, setCellStatuses] = useState<Map<string, CellStatus>>(new Map());
+  const inputRef = useRef<HTMLInputElement>(null);
+  const prevEditingCellRef = useRef<string | null>(null);
+
+  // Focus and select input only when starting to edit a NEW cell
+  useEffect(() => {
+    if (editingCell && inputRef.current) {
+      const currentCellKey = `${editingCell.recordId}-${editingCell.column}`;
+      // Only focus and select if this is a different cell than before
+      if (prevEditingCellRef.current !== currentCellKey) {
+        inputRef.current.focus();
+        inputRef.current.select();
+        prevEditingCellRef.current = currentCellKey;
+      }
+    } else {
+      prevEditingCellRef.current = null;
+    }
+  }, [editingCell]);
+
+  // Clear success statuses after a delay
+  useEffect(() => {
+    const successStatuses = Array.from(cellStatuses.entries()).filter(
+      ([_, status]) => status.status === 'success'
+    );
+    
+    if (successStatuses.length > 0) {
+      const timeout = setTimeout(() => {
+        setCellStatuses(prev => {
+          const newMap = new Map(prev);
+          successStatuses.forEach(([key]) => {
+            if (newMap.get(key)?.status === 'success') {
+              newMap.delete(key);
+            }
+          });
+          return newMap;
+        });
+      }, 2000);
+      
+      return () => clearTimeout(timeout);
+    }
+  }, [cellStatuses]);
+
+  // Get field metadata for a column
+  const getFieldMetadata = useCallback((column: string): SalesforceField | undefined => {
+    if (!objectDescription?.fields) return undefined;
+    return objectDescription.fields.find(f => f.name === column);
+  }, [objectDescription?.fields]);
+
+  // Check if a field is editable
+  const isFieldEditable = useCallback((column: string): boolean => {
+    // Can't edit Id or system fields
+    if (column === 'Id' || column === 'attributes') return false;
+    
+    const field = getFieldMetadata(column);
+    if (!field) return false;
+    
+    // Check if the field is updateable
+    return field.updateable;
+  }, [getFieldMetadata]);
 
   // Extract columns from the first result (excluding metadata)
   const columns = useMemo(() => {
@@ -83,6 +161,166 @@ const ResultsTable: React.FC<ResultsTableProps> = ({
       return JSON.stringify(value);
     }
     return String(value);
+  };
+
+  // Get the object name from the results
+  const getObjectName = (): string => {
+    if (!results || results.length === 0) return '';
+    const firstRecord = results[0];
+    return firstRecord.attributes?.type || '';
+  };
+
+  // Handle cell click to start editing
+  const handleCellClick = (recordId: string, column: string, currentValue: any) => {
+    if (!isFieldEditable(column)) return;
+    if (!recordId) return; // Can't edit without an Id
+    
+    setEditingCell({
+      recordId,
+      column,
+      value: formatValue(currentValue),
+    });
+  };
+
+  // Handle input change
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!editingCell) return;
+    setEditingCell({ ...editingCell, value: e.target.value });
+  };
+
+  // Convert input value to appropriate type based on field metadata
+  const convertValue = (value: string, column: string): any => {
+    const field = getFieldMetadata(column);
+    if (!field) return value;
+
+    // Handle empty values
+    if (value === '' || value === null) {
+      return null;
+    }
+
+    switch (field.type) {
+      case 'boolean':
+        return value.toLowerCase() === 'true';
+      case 'int':
+      case 'double':
+      case 'currency':
+      case 'percent':
+        const num = parseFloat(value);
+        return isNaN(num) ? value : num;
+      case 'date':
+      case 'datetime':
+        // Return as-is for date types, Salesforce expects ISO format
+        return value;
+      default:
+        return value;
+    }
+  };
+
+  // Save the edited value
+  const handleSave = async () => {
+    if (!editingCell) return;
+    
+    const { recordId, column, value } = editingCell;
+    const objectName = getObjectName();
+    
+    if (!objectName) {
+      console.error('Could not determine object name');
+      return;
+    }
+
+    const cellKey = `${recordId}-${column}`;
+    
+    // Set saving status
+    setCellStatuses(prev => new Map(prev).set(cellKey, { 
+      recordId, 
+      column, 
+      status: 'saving' 
+    }));
+    
+    setEditingCell(null);
+
+    try {
+      const convertedValue = convertValue(value, column);
+      const result = await window.electronAPI.salesforce.updateRecord(
+        objectName,
+        recordId,
+        { [column]: convertedValue }
+      );
+
+      if (result.success) {
+        setCellStatuses(prev => new Map(prev).set(cellKey, { 
+          recordId, 
+          column, 
+          status: 'success' 
+        }));
+        
+        // Notify parent to update the local data
+        if (onRecordUpdate) {
+          onRecordUpdate(recordId, column, convertedValue);
+        }
+      } else {
+        setCellStatuses(prev => new Map(prev).set(cellKey, { 
+          recordId, 
+          column, 
+          status: 'error',
+          message: result.error || 'Update failed'
+        }));
+      }
+    } catch (err: any) {
+      setCellStatuses(prev => new Map(prev).set(cellKey, { 
+        recordId, 
+        column, 
+        status: 'error',
+        message: err.message || 'Update failed'
+      }));
+    }
+  };
+
+  // Handle keyboard events in input
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      handleSave();
+    } else if (e.key === 'Escape') {
+      e.preventDefault();
+      setEditingCell(null);
+    }
+  };
+
+  // Handle blur (clicking outside)
+  const handleBlur = () => {
+    // Small delay to allow click events to fire first
+    setTimeout(() => {
+      if (editingCell) {
+        handleSave();
+      }
+    }, 100);
+  };
+
+  // Get cell status styling
+  const getCellStatusClass = (recordId: string, column: string): string => {
+    const cellKey = `${recordId}-${column}`;
+    const status = cellStatuses.get(cellKey);
+    
+    if (!status) return '';
+    
+    switch (status.status) {
+      case 'saving':
+        return 'bg-discord-accent/20 animate-pulse';
+      case 'success':
+        return 'bg-green-500/20';
+      case 'error':
+        return 'bg-red-500/20';
+      default:
+        return '';
+    }
+  };
+
+  // Get cell error message
+  const getCellError = (recordId: string, column: string): string | undefined => {
+    const cellKey = `${recordId}-${column}`;
+    const status = cellStatuses.get(cellKey);
+    return status?.status === 'error' ? status.message : undefined;
   };
 
   // Get value from a record, handling dot notation for nested fields
@@ -172,6 +410,11 @@ const ResultsTable: React.FC<ResultsTableProps> = ({
           <span className="text-sm text-discord-text-muted">
             {totalRecords.toLocaleString()} record{totalRecords !== 1 ? 's' : ''}
           </span>
+          {objectDescription && (
+            <span className="text-xs text-discord-text-muted bg-discord-lighter px-2 py-0.5 rounded">
+              Click editable cells to edit inline
+            </span>
+          )}
         </div>
 
         <div className="flex items-center gap-2">
@@ -193,29 +436,37 @@ const ResultsTable: React.FC<ResultsTableProps> = ({
           <thead>
             <tr>
               <th className="w-12 text-center">#</th>
-              {columns.map((column) => (
-                <th
-                  key={column}
-                  onClick={() => handleSort(column)}
-                  className="cursor-pointer hover:bg-discord-light select-none"
-                >
-                  <div className="flex items-center gap-1">
-                    <span className="truncate">{column}</span>
-                    {sortColumn === column && (
-                      <svg
-                        className={`w-4 h-4 flex-shrink-0 transition-transform ${
-                          sortDirection === 'desc' ? 'rotate-180' : ''
-                        }`}
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
-                      </svg>
-                    )}
-                  </div>
-                </th>
-              ))}
+              {columns.map((column) => {
+                const isEditable = isFieldEditable(column);
+                return (
+                  <th
+                    key={column}
+                    onClick={() => handleSort(column)}
+                    className="cursor-pointer hover:bg-discord-light select-none"
+                  >
+                    <div className="flex items-center gap-1">
+                      <span className="truncate">{column}</span>
+                      {isEditable && (
+                        <svg className="w-3 h-3 text-discord-text-muted flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                        </svg>
+                      )}
+                      {sortColumn === column && (
+                        <svg
+                          className={`w-4 h-4 flex-shrink-0 transition-transform ${
+                            sortDirection === 'desc' ? 'rotate-180' : ''
+                          }`}
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+                        </svg>
+                      )}
+                    </div>
+                  </th>
+                );
+              })}
             </tr>
           </thead>
           <tbody>
@@ -224,11 +475,47 @@ const ResultsTable: React.FC<ResultsTableProps> = ({
                 <td className="text-center text-discord-text-muted text-xs">
                   {index + 1}
                 </td>
-                {columns.map((column) => (
-                  <td key={column} className="max-w-xs truncate" title={formatValue(record[column])}>
-                    {formatValue(record[column])}
-                  </td>
-                ))}
+                {columns.map((column) => {
+                  const isEditable = isFieldEditable(column) && record.Id;
+                  const isEditing = editingCell?.recordId === record.Id && editingCell?.column === column;
+                  const cellError = getCellError(record.Id, column);
+                  const statusClass = getCellStatusClass(record.Id, column);
+                  
+                  return (
+                    <td 
+                      key={column} 
+                      className={`max-w-xs relative ${statusClass} ${
+                        isEditable ? 'cursor-pointer hover:bg-discord-light' : ''
+                      }`}
+                      onClick={() => !isEditing && isEditable && handleCellClick(record.Id, column, record[column])}
+                      title={cellError || formatValue(record[column])}
+                    >
+                      {isEditing ? (
+                        <input
+                          ref={inputRef}
+                          type="text"
+                          value={editingCell.value}
+                          onChange={handleInputChange}
+                          onKeyDown={handleKeyDown}
+                          onBlur={handleBlur}
+                          className="w-full bg-discord-darker text-discord-text px-2 py-1 rounded border border-discord-accent focus:outline-none"
+                          onClick={(e) => e.stopPropagation()}
+                        />
+                      ) : (
+                        <span className={`truncate block ${cellError ? 'text-red-400' : ''}`}>
+                          {formatValue(record[column])}
+                        </span>
+                      )}
+                      {cellError && !isEditing && (
+                        <div className="absolute right-1 top-1/2 -translate-y-1/2">
+                          <svg className="w-4 h-4 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                        </div>
+                      )}
+                    </td>
+                  );
+                })}
               </tr>
             ))}
           </tbody>

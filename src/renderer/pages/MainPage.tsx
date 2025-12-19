@@ -189,6 +189,18 @@ const MainPage: React.FC<MainPageProps> = ({ session }) => {
                 error={queryError}
                 totalRecords={totalRecords}
                 onExportCsv={handleExportCsv}
+                objectDescription={objectDescription}
+                onRecordUpdate={(recordId, field, newValue) => {
+                  // Update local results to reflect the change
+                  setQueryResults(prev => {
+                    if (!prev) return prev;
+                    return prev.map(record => 
+                      record.Id === recordId 
+                        ? { ...record, [field]: newValue }
+                        : record
+                    );
+                  });
+                }}
               />
             </div>
           </>

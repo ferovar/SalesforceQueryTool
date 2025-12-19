@@ -359,6 +359,24 @@ export class SalesforceService {
     return results;
   }
 
+  async updateRecord(objectName: string, recordId: string, fields: Record<string, any>): Promise<{ success: boolean; id: string }> {
+    if (!this.connection) {
+      throw new Error('Not connected to Salesforce');
+    }
+
+    const sobject = this.connection.sobject(objectName);
+    const result = await sobject.update({
+      Id: recordId,
+      ...fields,
+    });
+
+    if (result.success) {
+      return { success: true, id: result.id };
+    } else {
+      throw new Error((result as any).errors?.map((e: any) => e.message).join(', ') || 'Update failed');
+    }
+  }
+
   async exportToCsv(data: any[], filename: string): Promise<string> {
     if (data.length === 0) {
       throw new Error('No data to export');

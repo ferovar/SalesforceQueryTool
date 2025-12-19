@@ -34,6 +34,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
     executeQuery: (query: string, includeDeleted: boolean) => 
       ipcRenderer.invoke('salesforce:executeQuery', query, includeDeleted),
     
+    updateRecord: (objectName: string, recordId: string, fields: Record<string, any>) =>
+      ipcRenderer.invoke('salesforce:updateRecord', objectName, recordId, fields),
+    
     exportToCsv: (data: any[], filename: string) => 
       ipcRenderer.invoke('salesforce:exportToCsv', data, filename),
   },
