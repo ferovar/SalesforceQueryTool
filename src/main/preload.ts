@@ -57,4 +57,13 @@ contextBridge.exposeInMainWorld('electronAPI', {
     delete: (queryId: string) => ipcRenderer.invoke('queries:delete', queryId),
     updateLastRun: (queryId: string) => ipcRenderer.invoke('queries:updateLastRun', queryId),
   },
+
+  // Query history management
+  history: {
+    add: (entry: { query: string; objectName: string; recordCount: number; success: boolean; error?: string }) =>
+      ipcRenderer.invoke('history:add', entry),
+    getAll: () => ipcRenderer.invoke('history:getAll'),
+    clear: () => ipcRenderer.invoke('history:clear'),
+    delete: (entryId: string) => ipcRenderer.invoke('history:delete', entryId),
+  },
 });

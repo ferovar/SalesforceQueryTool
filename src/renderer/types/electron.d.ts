@@ -44,6 +44,13 @@ export interface ElectronAPI {
     delete: (queryId: string) => Promise<{ success: boolean }>;
     updateLastRun: (queryId: string) => Promise<{ success: boolean }>;
   };
+
+  history: {
+    add: (entry: { query: string; objectName: string; recordCount: number; success: boolean; error?: string }) => Promise<{ success: boolean; data?: QueryHistoryEntry; error?: string }>;
+    getAll: () => Promise<QueryHistoryEntry[]>;
+    clear: () => Promise<{ success: boolean }>;
+    delete: (entryId: string) => Promise<{ success: boolean }>;
+  };
 }
 
 export interface SalesforceObject {
@@ -106,6 +113,16 @@ export interface SavedQuery {
   objectName: string;
   createdAt: string;
   lastRunAt: string | null;
+}
+
+export interface QueryHistoryEntry {
+  id: string;
+  query: string;
+  objectName: string;
+  executedAt: string;
+  recordCount: number;
+  success: boolean;
+  error?: string;
 }
 
 declare global {

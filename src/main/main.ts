@@ -3,12 +3,14 @@ import * as path from 'path';
 import { SalesforceService } from './services/salesforce';
 import { CredentialsStore } from './services/credentials';
 import { QueriesStore } from './services/queries';
+import { QueryHistoryStore } from './services/queryHistory';
 
 let mainWindow: BrowserWindow | null = null;
 let splashWindow: BrowserWindow | null = null;
 const salesforceService = new SalesforceService();
 const credentialsStore = new CredentialsStore();
 const queriesStore = new QueriesStore();
+const queryHistoryStore = new QueryHistoryStore();
 
 const isDev = process.env.NODE_ENV === 'development' || !app.isPackaged;
 
@@ -299,5 +301,29 @@ ipcMain.handle('queries:delete', (_event, queryId: string) => {
 
 ipcMain.handle('queries:updateLastRun', (_event, queryId: string) => {
   queriesStore.updateLastRunAt(queryId);
+  return { success: true };
+});
+
+// IPC Handlers for query history
+ipcMain.handle('history:add', (_event, entry: { query: string; objectName: string; recordCount: number; success: boolean; error?: string }) => {
+  try {
+    const historyEntry = queryHistoryStore.addEntry(entry);
+    return { success: true, data: historyEntry };
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('history:getAll', () => {
+  return queryHistoryStore.getHistory();
+});
+
+ipcMain.handle('history:clear', () => {
+  queryHistoryStore.clearHistory();
+  return { success: true };
+});
+
+ipcMain.handle('history:delete', (_event, entryId: string) => {
+  queryHistoryStore.deleteEntry(entryId);
   return { success: true };
 });

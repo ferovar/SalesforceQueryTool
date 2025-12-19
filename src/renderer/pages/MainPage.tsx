@@ -4,6 +4,7 @@ import type { SalesforceObject, SalesforceField, ObjectDescription } from '../ty
 import ObjectList from '../components/ObjectList';
 import QueryBuilder from '../components/QueryBuilder';
 import ResultsTable from '../components/ResultsTable';
+import QueryHistory from '../components/QueryHistory';
 
 interface MainPageProps {
   session: UserSession;
@@ -20,6 +21,8 @@ const MainPage: React.FC<MainPageProps> = ({ session }) => {
   const [isExecutingQuery, setIsExecutingQuery] = useState(false);
   const [queryError, setQueryError] = useState<string | null>(null);
   const [totalRecords, setTotalRecords] = useState<number>(0);
+  const [historyRefreshTrigger, setHistoryRefreshTrigger] = useState(0);
+  const [showHistory, setShowHistory] = useState(true);
 
   // Load objects on mount
   useEffect(() => {
@@ -75,19 +78,64 @@ const MainPage: React.FC<MainPageProps> = ({ session }) => {
     setQueryError(null);
     setQueryResults(null);
 
+    // Extract object name from query for history
+    const objectMatch = query.match(/FROM\s+(\w+)/i);
+    const objectName = objectMatch ? objectMatch[1] : selectedObject?.name || 'Unknown';
+
     try {
       const result = await window.electronAPI.salesforce.executeQuery(query, includeDeleted);
       if (result.success && result.data) {
         setQueryResults(result.data);
         setTotalRecords(result.data.length);
+        
+        // Add to history
+        await window.electronAPI.history.add({
+          query: query.trim(),
+          objectName,
+          recordCount: result.data.length,
+          success: true,
+        });
+        setHistoryRefreshTrigger(prev => prev + 1);
       } else {
-        setQueryError(result.error || 'Query execution failed');
+        const errorMsg = result.error || 'Query execution failed';
+        setQueryError(errorMsg);
+        
+        // Add failed query to history
+        await window.electronAPI.history.add({
+          query: query.trim(),
+          objectName,
+          recordCount: 0,
+          success: false,
+          error: errorMsg,
+        });
+        setHistoryRefreshTrigger(prev => prev + 1);
       }
     } catch (err: any) {
-      setQueryError(err.message || 'An unexpected error occurred');
+      const errorMsg = err.message || 'An unexpected error occurred';
+      setQueryError(errorMsg);
+      
+      // Add failed query to history
+      await window.electronAPI.history.add({
+        query: query.trim(),
+        objectName,
+        recordCount: 0,
+        success: false,
+        error: errorMsg,
+      });
+      setHistoryRefreshTrigger(prev => prev + 1);
     } finally {
       setIsExecutingQuery(false);
     }
+  };
+
+  // Handle selecting a query from history
+  const handleSelectHistoryQuery = async (historyQuery: string, objectName: string) => {
+    // Find and select the object if it exists
+    const obj = objects.find(o => o.name.toLowerCase() === objectName.toLowerCase());
+    if (obj && obj !== selectedObject) {
+      await handleObjectSelect(obj);
+    }
+    setQuery(historyQuery);
   };
 
   const handleExportCsv = async () => {
@@ -105,7 +153,7 @@ const MainPage: React.FC<MainPageProps> = ({ session }) => {
   };
 
   return (
-    <div className="h-full flex bg-discord-medium">
+    <div className="h-full flex bg-discord-medium relative">
       {/* Left Sidebar - Object List */}
       <div className="w-72 flex-shrink-0 bg-discord-dark border-r border-discord-darker">
         <ObjectList
@@ -161,6 +209,31 @@ const MainPage: React.FC<MainPageProps> = ({ session }) => {
           </div>
         )}
       </div>
+
+      {/* Right Sidebar - Query History */}
+      {showHistory && (
+        <div className="w-80 flex-shrink-0 bg-discord-dark border-l border-discord-darker">
+          <QueryHistory
+            onSelectQuery={handleSelectHistoryQuery}
+            refreshTrigger={historyRefreshTrigger}
+          />
+        </div>
+      )}
+
+      {/* History Toggle Button */}
+      <button
+        onClick={() => setShowHistory(!showHistory)}
+        className={`absolute right-0 top-1/2 -translate-y-1/2 p-2 rounded-l-lg transition-all z-10 ${
+          showHistory 
+            ? 'bg-discord-dark text-discord-text-muted hover:text-discord-text mr-80' 
+            : 'bg-discord-accent text-white hover:bg-discord-accent-hover'
+        }`}
+        title={showHistory ? 'Hide History' : 'Show History'}
+      >
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+      </button>
     </div>
   );
 };
