@@ -258,13 +258,13 @@ const RecordMigrationModal: React.FC<RecordMigrationModalProps> = ({
         <div className="flex items-center justify-between px-6 py-4 border-b border-discord-darker">
           <div>
             <h2 className="text-xl font-semibold text-white">Push Records to Another Org</h2>
-            <p className="text-sm text-discord-muted mt-1">
+            <p className="text-sm text-discord-text-muted mt-1">
               Migrating {selectedRecords.length} {objectName} record{selectedRecords.length !== 1 ? 's' : ''} from {sourceOrgUrl}
             </p>
           </div>
           <button
             onClick={handleClose}
-            className="text-discord-muted hover:text-white transition-colors p-1"
+            className="text-discord-text-muted hover:text-white transition-colors p-1"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -281,13 +281,13 @@ const RecordMigrationModal: React.FC<RecordMigrationModalProps> = ({
                   step === s ? 'text-discord-accent' : 
                   ['connect', 'configure', 'review', 'migrate', 'complete'].indexOf(step) > index 
                     ? 'text-green-400' 
-                    : 'text-discord-muted'
+                    : 'text-discord-text-muted'
                 }`}>
                   <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-medium ${
                     step === s ? 'bg-discord-accent text-white' :
                     ['connect', 'configure', 'review', 'migrate', 'complete'].indexOf(step) > index
                       ? 'bg-green-500 text-white'
-                      : 'bg-discord-medium text-discord-muted'
+                      : 'bg-discord-medium text-discord-text-muted'
                   }`}>
                     {['connect', 'configure', 'review', 'migrate', 'complete'].indexOf(step) > index ? '✓' : index + 1}
                   </div>
@@ -322,7 +322,7 @@ const RecordMigrationModal: React.FC<RecordMigrationModalProps> = ({
                 {/* Already connected target orgs for this session */}
                 {targetOrgs.length > 0 && (
                   <div className="mb-6">
-                    <label className="block text-sm font-medium text-discord-muted mb-2">
+                    <label className="block text-sm font-medium text-discord-text-muted mb-2">
                       Connected This Session
                     </label>
                     <div className="space-y-2">
@@ -338,8 +338,8 @@ const RecordMigrationModal: React.FC<RecordMigrationModalProps> = ({
                         >
                           <div>
                             <div className="text-white font-medium">{org.label}</div>
-                            <div className="text-sm text-discord-muted">{org.username}</div>
-                            <div className="text-xs text-discord-muted">{org.instanceUrl}</div>
+                            <div className="text-sm text-discord-text-muted">{org.username}</div>
+                            <div className="text-xs text-discord-text-muted">{org.instanceUrl}</div>
                           </div>
                           <div className="flex items-center gap-2">
                             <span className={`px-2 py-0.5 text-xs rounded ${
@@ -352,7 +352,7 @@ const RecordMigrationModal: React.FC<RecordMigrationModalProps> = ({
                                 e.stopPropagation();
                                 handleDisconnectOrg(org.id);
                               }}
-                              className="text-discord-muted hover:text-red-400 transition-colors p-1"
+                              className="text-discord-text-muted hover:text-red-400 transition-colors p-1"
                               title="Disconnect"
                             >
                               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -368,17 +368,17 @@ const RecordMigrationModal: React.FC<RecordMigrationModalProps> = ({
 
                 {/* Saved connections from main app (OAuth and password-based) */}
                 <div>
-                  <label className="block text-sm font-medium text-discord-muted mb-2">
+                  <label className="block text-sm font-medium text-discord-text-muted mb-2">
                     {targetOrgs.length > 0 ? 'Or select from saved connections' : 'Saved Connections'}
                   </label>
                   
                   {savedConnections.length === 0 ? (
                     <div className="p-6 bg-discord-medium rounded-lg border border-discord-darker text-center">
-                      <svg className="w-12 h-12 mx-auto text-discord-muted mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <svg className="w-12 h-12 mx-auto text-discord-text-muted mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
                       </svg>
-                      <p className="text-discord-light mb-2">No saved connections found</p>
-                      <p className="text-sm text-discord-muted">
+                      <p className="text-discord-text mb-2">No saved connections found</p>
+                      <p className="text-sm text-discord-text-muted">
                         Log in to other Salesforce orgs from the login page and save them to use here.
                       </p>
                     </div>
@@ -396,7 +396,7 @@ const RecordMigrationModal: React.FC<RecordMigrationModalProps> = ({
                         >
                           <div>
                             <div className="text-white font-medium">{connection.label}</div>
-                            <div className="text-sm text-discord-muted">{connection.username}</div>
+                            <div className="text-sm text-discord-text-muted">{connection.username}</div>
                           </div>
                           <div className="flex items-center gap-2">
                             <span className={`px-2 py-0.5 text-xs rounded ${
@@ -434,7 +434,7 @@ const RecordMigrationModal: React.FC<RecordMigrationModalProps> = ({
             <div className="space-y-6">
               <div>
                 <h3 className="text-lg font-medium text-white mb-2">Configure Relationships</h3>
-                <p className="text-sm text-discord-muted mb-4">
+                <p className="text-sm text-discord-text-muted mb-4">
                   Select which related records should be included in the migration. 
                   Parent records will be created first, then linked to the {objectName} records.
                 </p>
@@ -444,7 +444,7 @@ const RecordMigrationModal: React.FC<RecordMigrationModalProps> = ({
                     <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-discord-accent"></div>
                   </div>
                 ) : relationships.length === 0 ? (
-                  <div className="text-center py-8 text-discord-muted">
+                  <div className="text-center py-8 text-discord-text-muted">
                     No lookup relationships found for {objectName}
                   </div>
                 ) : (
@@ -476,7 +476,7 @@ const RecordMigrationModal: React.FC<RecordMigrationModalProps> = ({
                             />
                             <div>
                               <div className="text-white font-medium">{rel.fieldLabel}</div>
-                              <div className="text-sm text-discord-muted">
+                              <div className="text-sm text-discord-text-muted">
                                 {config.fieldName} → {rel.referenceTo.join(', ')}
                               </div>
                               {isAutoExcluded && (
@@ -528,25 +528,25 @@ const RecordMigrationModal: React.FC<RecordMigrationModalProps> = ({
             <div className="space-y-6">
               <div>
                 <h3 className="text-lg font-medium text-white mb-2">Review Migration Plan</h3>
-                <p className="text-sm text-discord-muted mb-4">
+                <p className="text-sm text-discord-text-muted mb-4">
                   Review the records that will be created in the target org.
                 </p>
 
                 <div className="bg-discord-medium rounded-lg p-4 border border-discord-darker mb-4">
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <div className="text-sm text-discord-muted">Total Records</div>
+                      <div className="text-sm text-discord-text-muted">Total Records</div>
                       <div className="text-2xl font-bold text-white">{migrationPlan.totalRecords}</div>
                     </div>
                     <div>
-                      <div className="text-sm text-discord-muted">Object Types</div>
+                      <div className="text-sm text-discord-text-muted">Object Types</div>
                       <div className="text-2xl font-bold text-white">{migrationPlan.objectOrder.length}</div>
                     </div>
                   </div>
                 </div>
 
                 <div className="space-y-3">
-                  <h4 className="text-sm font-medium text-discord-muted">Insertion Order:</h4>
+                  <h4 className="text-sm font-medium text-discord-text-muted">Insertion Order:</h4>
                   {migrationPlan.objectOrder.map((objName, index) => (
                     <div 
                       key={objName}
@@ -558,7 +558,7 @@ const RecordMigrationModal: React.FC<RecordMigrationModalProps> = ({
                         </span>
                         <span className="text-white font-medium">{objName}</span>
                       </div>
-                      <span className="text-discord-muted">
+                      <span className="text-discord-text-muted">
                         {migrationPlan.objectCounts[objName]} record{migrationPlan.objectCounts[objName] !== 1 ? 's' : ''}
                       </span>
                     </div>
@@ -585,7 +585,7 @@ const RecordMigrationModal: React.FC<RecordMigrationModalProps> = ({
             <div className="flex flex-col items-center justify-center py-12">
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-discord-accent mb-4"></div>
               <h3 className="text-lg font-medium text-white mb-2">Migrating Records...</h3>
-              <p className="text-sm text-discord-muted">{migrationProgress}</p>
+              <p className="text-sm text-discord-text-muted">{migrationProgress}</p>
             </div>
           )}
 
@@ -615,11 +615,11 @@ const RecordMigrationModal: React.FC<RecordMigrationModalProps> = ({
                 <div className="grid grid-cols-2 gap-4">
                   <div className="text-center">
                     <div className="text-3xl font-bold text-green-400">{migrationResult.totalInserted}</div>
-                    <div className="text-sm text-discord-muted">Records Created</div>
+                    <div className="text-sm text-discord-text-muted">Records Created</div>
                   </div>
                   <div className="text-center">
                     <div className="text-3xl font-bold text-red-400">{migrationResult.totalFailed}</div>
-                    <div className="text-sm text-discord-muted">Failed</div>
+                    <div className="text-sm text-discord-text-muted">Failed</div>
                   </div>
                 </div>
               </div>
@@ -645,7 +645,7 @@ const RecordMigrationModal: React.FC<RecordMigrationModalProps> = ({
                           <div key={i}>{err}</div>
                         ))}
                         {result.errors.length > 3 && (
-                          <div className="text-discord-muted">...and {result.errors.length - 3} more errors</div>
+                          <div className="text-discord-text-muted">...and {result.errors.length - 3} more errors</div>
                         )}
                       </div>
                     )}
@@ -660,7 +660,7 @@ const RecordMigrationModal: React.FC<RecordMigrationModalProps> = ({
         <div className="flex items-center justify-between px-6 py-4 border-t border-discord-darker bg-discord-darker/50">
           <button
             onClick={handleClose}
-            className="px-4 py-2 text-discord-muted hover:text-white transition-colors"
+            className="px-4 py-2 text-discord-text-muted hover:text-white transition-colors"
           >
             {step === 'complete' ? 'Close' : 'Cancel'}
           </button>
