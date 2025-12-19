@@ -452,4 +452,35 @@ export class OrgConnectionManager {
       errors: r.errors?.map((e: any) => e.message) || [],
     }));
   }
+
+  /**
+   * Get all RecordTypes from a target org for mapping
+   * Returns a map of "SObjectType:DeveloperName" -> RecordType Id
+   */
+  async getRecordTypeMapping(
+    connectionId: string
+  ): Promise<Map<string, { id: string; name: string }>> {
+    const orgConnection = this.connections.get(connectionId);
+    if (!orgConnection) {
+      throw new Error('Target org not connected');
+    }
+
+    const recordTypes = await this.executeQuery(
+      connectionId,
+      'SELECT Id, SobjectType, DeveloperName, Name FROM RecordType WHERE IsActive = true'
+    );
+
+    const mapping = new Map<string, { id: string; name: string }>();
+    for (const rt of recordTypes) {
+      const key = `${rt.SobjectType}:${rt.DeveloperName}`;
+      mapping.set(key, { id: rt.Id, name: rt.Name });
+    }
+
+    // Also map by Id for quick lookups
+    for (const rt of recordTypes) {
+      mapping.set(rt.Id, { id: rt.Id, name: rt.Name });
+    }
+
+    return mapping;
+  }
 }

@@ -501,8 +501,64 @@ ipcMain.handle('migration:executeMigration', async (_event, params: {
     const idMapping = new Map<string, string>();
     const results: { objectName: string; inserted: number; failed: number; errors: string[] }[] = [];
     
+    // Build RecordType mapping from target org
+    // Maps source RecordTypeId -> target RecordTypeId based on SObjectType:DeveloperName
+    const recordTypeMapping = new Map<string, string>();
+    let targetRecordTypes: Map<string, { id: string; name: string }> | null = null;
+    
+    // Check if we have any RecordTypeId fields to remap
+    const hasRecordTypeFields = Object.values(recordsByObject).some(records =>
+      records.some(record => record.RecordTypeId)
+    );
+    
+    if (hasRecordTypeFields) {
+      // Query RecordTypes from both source and target
+      targetRecordTypes = await orgConnectionManager.getRecordTypeMapping(targetOrgId);
+      
+      // Query source RecordTypes to build mapping
+      const sourceConnection = salesforceService.getConnection();
+      if (sourceConnection) {
+        // Get all unique RecordTypeIds from records being migrated
+        const sourceRecordTypeIds = new Set<string>();
+        for (const records of Object.values(recordsByObject)) {
+          for (const record of records) {
+            if (record.RecordTypeId) {
+              sourceRecordTypeIds.add(record.RecordTypeId);
+            }
+          }
+        }
+        
+        if (sourceRecordTypeIds.size > 0) {
+          // Query source RecordTypes
+          const sourceQuery = `SELECT Id, SobjectType, DeveloperName FROM RecordType WHERE Id IN ('${Array.from(sourceRecordTypeIds).join("','")}')`;          const sourceRecordTypes = await sourceConnection.query(sourceQuery);
+          
+          // Build mapping: source Id -> target Id (based on SObjectType:DeveloperName match)
+          for (const srcRT of sourceRecordTypes.records as any[]) {
+            const key = `${srcRT.SobjectType}:${srcRT.DeveloperName}`;
+            const targetRT = targetRecordTypes.get(key);
+            if (targetRT) {
+              // Same RecordType exists in target - map source ID to target ID
+              recordTypeMapping.set(srcRT.Id, targetRT.id);
+              // Also add to general idMapping so relationship remapping works
+              idMapping.set(srcRT.Id, targetRT.id);
+            } else {
+              // RecordType doesn't exist in target - this will cause an error on insert
+              // Leave unmapped, the error will be reported
+            }
+          }
+        }
+      }
+    }
+    
     // Insert records in order (parents first)
     for (const objectName of objectOrder) {
+      // Skip RecordType - they should already exist and we just remap IDs
+      if (objectName === 'RecordType') {
+        // Add to results as "skipped" (0 inserted, 0 failed)
+        results.push({ objectName, inserted: 0, failed: 0, errors: ['RecordTypes are matched by DeveloperName, not inserted'] });
+        continue;
+      }
+      
       const records = recordsByObject[objectName] || [];
       if (records.length === 0) continue;
       
@@ -516,8 +572,12 @@ ipcMain.handle('migration:executeMigration', async (_event, params: {
             continue;
           }
           
+          // Special handling for RecordTypeId - use our RecordType mapping
+          if (key === 'RecordTypeId' && value && recordTypeMapping.has(value as string)) {
+            prepared[key] = recordTypeMapping.get(value as string);
+          }
           // Check if this is a relationship field that needs remapping
-          if (value && typeof value === 'string' && idMapping.has(value)) {
+          else if (value && typeof value === 'string' && idMapping.has(value)) {
             prepared[key] = idMapping.get(value);
           } else {
             prepared[key] = value;
