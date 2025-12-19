@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import type { SalesforceObject, ObjectDescription, SalesforceField, SavedQuery } from '../types/electron.d';
 
 interface QueryBuilderProps {
@@ -9,6 +9,15 @@ interface QueryBuilderProps {
   onExecuteQuery: (includeDeleted: boolean) => void;
   isLoading: boolean;
   isExecuting: boolean;
+}
+
+interface AutocompleteState {
+  isVisible: boolean;
+  suggestions: SalesforceField[];
+  selectedIndex: number;
+  position: { top: number; left: number };
+  prefix: string;  // The partial text being typed
+  startPos: number; // Position where the current word starts
 }
 
 const QueryBuilder: React.FC<QueryBuilderProps> = ({
@@ -23,6 +32,18 @@ const QueryBuilder: React.FC<QueryBuilderProps> = ({
   const [showFieldPicker, setShowFieldPicker] = useState(false);
   const [selectedFields, setSelectedFields] = useState<Set<string>>(new Set());
   const [fieldSearch, setFieldSearch] = useState('');
+  
+  // Autocomplete state
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const autocompleteRef = useRef<HTMLDivElement>(null);
+  const [autocomplete, setAutocomplete] = useState<AutocompleteState>({
+    isVisible: false,
+    suggestions: [],
+    selectedIndex: 0,
+    position: { top: 0, left: 0 },
+    prefix: '',
+    startPos: 0,
+  });
   
   // Saved queries state
   const [savedQueries, setSavedQueries] = useState<SavedQuery[]>([]);
@@ -53,11 +74,207 @@ const QueryBuilder: React.FC<QueryBuilderProps> = ({
       if (showActiveQueryDropdown && !target.closest('.active-query-dropdown')) {
         setShowActiveQueryDropdown(false);
       }
+      // Close autocomplete when clicking outside
+      if (autocomplete.isVisible && !target.closest('.autocomplete-dropdown') && target !== textareaRef.current) {
+        setAutocomplete(prev => ({ ...prev, isVisible: false }));
+      }
     };
     
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [showSavedQueriesDropdown, showActiveQueryDropdown]);
+  }, [showSavedQueriesDropdown, showActiveQueryDropdown, autocomplete.isVisible]);
+
+  // Helper to get caret position in textarea
+  const getCaretCoordinates = useCallback((textarea: HTMLTextAreaElement, position: number) => {
+    // Create a mirror div to calculate position
+    const mirror = document.createElement('div');
+    const computed = getComputedStyle(textarea);
+    
+    mirror.style.cssText = `
+      position: absolute;
+      visibility: hidden;
+      white-space: pre-wrap;
+      word-wrap: break-word;
+      overflow-wrap: break-word;
+      font-family: ${computed.fontFamily};
+      font-size: ${computed.fontSize};
+      line-height: ${computed.lineHeight};
+      padding: ${computed.padding};
+      width: ${textarea.clientWidth}px;
+      border: ${computed.border};
+    `;
+    
+    document.body.appendChild(mirror);
+    
+    const textBeforeCaret = textarea.value.substring(0, position);
+    mirror.textContent = textBeforeCaret;
+    
+    // Add a span at the end to measure position
+    const span = document.createElement('span');
+    span.textContent = '|';
+    mirror.appendChild(span);
+    
+    const rect = textarea.getBoundingClientRect();
+    const spanRect = span.getBoundingClientRect();
+    const mirrorRect = mirror.getBoundingClientRect();
+    
+    document.body.removeChild(mirror);
+    
+    return {
+      top: rect.top + (spanRect.top - mirrorRect.top) + 24, // 24px offset for dropdown below cursor
+      left: rect.left + (spanRect.left - mirrorRect.left),
+    };
+  }, []);
+
+  // Check if we're in a position where field autocomplete should trigger
+  const shouldShowAutocomplete = useCallback((text: string, cursorPos: number): { show: boolean; prefix: string; startPos: number } => {
+    if (!objectDescription?.fields) return { show: false, prefix: '', startPos: 0 };
+    
+    // Get text before cursor
+    const textBeforeCursor = text.substring(0, cursorPos);
+    
+    // Find the start of the current word
+    const wordMatch = textBeforeCursor.match(/[a-zA-Z_][a-zA-Z0-9_]*$/);
+    if (!wordMatch) return { show: false, prefix: '', startPos: 0 };
+    
+    const prefix = wordMatch[0];
+    const startPos = cursorPos - prefix.length;
+    const textBeforeWord = textBeforeCursor.substring(0, startPos).trimEnd();
+    
+    // Check if we're after SELECT, a comma in the SELECT clause, or a dot (relationship)
+    const upperText = textBeforeWord.toUpperCase();
+    
+    // Check for SELECT context - after SELECT keyword or after commas before FROM
+    const selectMatch = upperText.match(/SELECT\s*$/);
+    const commaMatch = textBeforeWord.match(/,\s*$/);
+    const dotMatch = textBeforeWord.match(/\.\s*$/);
+    
+    // Check if we're before FROM (still in SELECT clause)
+    const fromIndex = text.toUpperCase().indexOf('FROM');
+    const inSelectClause = fromIndex === -1 || cursorPos < fromIndex;
+    
+    // Also allow in WHERE clause for conditions
+    const whereMatch = upperText.match(/WHERE\s+$/i);
+    const andOrMatch = upperText.match(/\b(AND|OR)\s+$/i);
+    const operatorMatch = textBeforeWord.match(/[=<>!]+\s*$/);
+    
+    if (selectMatch || (commaMatch && inSelectClause) || dotMatch || whereMatch || andOrMatch) {
+      return { show: true, prefix, startPos };
+    }
+    
+    return { show: false, prefix: '', startPos: 0 };
+  }, [objectDescription?.fields]);
+
+  // Filter fields based on prefix
+  const getFilteredSuggestions = useCallback((prefix: string): SalesforceField[] => {
+    if (!objectDescription?.fields || !prefix) return [];
+    
+    const lowerPrefix = prefix.toLowerCase();
+    return objectDescription.fields
+      .filter(field => 
+        field.name.toLowerCase().startsWith(lowerPrefix) ||
+        field.label.toLowerCase().startsWith(lowerPrefix)
+      )
+      .slice(0, 10); // Limit to 10 suggestions
+  }, [objectDescription?.fields]);
+
+  // Handle input change in textarea with autocomplete
+  const handleQueryInputChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const newValue = e.target.value;
+    const cursorPos = e.target.selectionStart;
+    
+    onQueryChange(newValue);
+    
+    // Check if we should show autocomplete
+    const { show, prefix, startPos } = shouldShowAutocomplete(newValue, cursorPos);
+    
+    if (show && prefix.length >= 1) {
+      const suggestions = getFilteredSuggestions(prefix);
+      if (suggestions.length > 0) {
+        const coords = getCaretCoordinates(e.target, startPos);
+        setAutocomplete({
+          isVisible: true,
+          suggestions,
+          selectedIndex: 0,
+          position: coords,
+          prefix,
+          startPos,
+        });
+      } else {
+        setAutocomplete(prev => ({ ...prev, isVisible: false }));
+      }
+    } else {
+      setAutocomplete(prev => ({ ...prev, isVisible: false }));
+    }
+  }, [onQueryChange, shouldShowAutocomplete, getFilteredSuggestions, getCaretCoordinates]);
+
+  // Apply autocomplete suggestion
+  const applySuggestion = useCallback((field: SalesforceField) => {
+    const before = query.substring(0, autocomplete.startPos);
+    const after = query.substring(autocomplete.startPos + autocomplete.prefix.length);
+    const newQuery = before + field.name + after;
+    
+    onQueryChange(newQuery);
+    setAutocomplete(prev => ({ ...prev, isVisible: false }));
+    
+    // Focus textarea and set cursor position after the inserted field
+    setTimeout(() => {
+      if (textareaRef.current) {
+        const newCursorPos = autocomplete.startPos + field.name.length;
+        textareaRef.current.focus();
+        textareaRef.current.setSelectionRange(newCursorPos, newCursorPos);
+      }
+    }, 0);
+  }, [query, autocomplete.startPos, autocomplete.prefix, onQueryChange]);
+
+  // Handle keyboard navigation in autocomplete
+  const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (autocomplete.isVisible) {
+      switch (e.key) {
+        case 'ArrowDown':
+          e.preventDefault();
+          setAutocomplete(prev => ({
+            ...prev,
+            selectedIndex: Math.min(prev.selectedIndex + 1, prev.suggestions.length - 1),
+          }));
+          break;
+        case 'ArrowUp':
+          e.preventDefault();
+          setAutocomplete(prev => ({
+            ...prev,
+            selectedIndex: Math.max(prev.selectedIndex - 1, 0),
+          }));
+          break;
+        case 'Tab':
+        case 'Enter':
+          if (autocomplete.suggestions.length > 0) {
+            e.preventDefault();
+            applySuggestion(autocomplete.suggestions[autocomplete.selectedIndex]);
+          }
+          break;
+        case 'Escape':
+          e.preventDefault();
+          setAutocomplete(prev => ({ ...prev, isVisible: false }));
+          break;
+      }
+    } else if (e.key === 'Enter' && e.ctrlKey) {
+      // Keep Ctrl+Enter to run query - use onExecuteQuery directly
+      e.preventDefault();
+      if (query.trim()) {
+        onExecuteQuery(false);
+      }
+    }
+  }, [autocomplete, applySuggestion, query, onExecuteQuery]);
+
+  // Scroll selected item into view
+  useEffect(() => {
+    if (autocomplete.isVisible && autocompleteRef.current) {
+      const selected = autocompleteRef.current.querySelector('.autocomplete-selected');
+      if (selected) {
+        selected.scrollIntoView({ block: 'nearest' });
+      }
+    }
+  }, [autocomplete.selectedIndex, autocomplete.isVisible]);
 
   // Format relative time
   const formatRelativeTime = (dateStr: string | null): string => {
@@ -574,18 +791,63 @@ const QueryBuilder: React.FC<QueryBuilderProps> = ({
       )}
 
       {/* Query Editor */}
-      <div className="mb-4">
+      <div className="mb-4 relative">
         <label className="block text-sm font-medium text-discord-text-muted mb-2">
           SOQL Query
         </label>
         <textarea
+          ref={textareaRef}
           value={query}
-          onChange={(e) => onQueryChange(e.target.value)}
+          onChange={handleQueryInputChange}
+          onKeyDown={handleKeyDown}
           placeholder="SELECT Id, Name FROM Account LIMIT 100"
           className="query-editor w-full"
           rows={6}
           spellCheck={false}
         />
+        
+        {/* Autocomplete Dropdown */}
+        {autocomplete.isVisible && autocomplete.suggestions.length > 0 && (
+          <div
+            ref={autocompleteRef}
+            className="autocomplete-dropdown fixed z-50 bg-discord-dark border border-discord-lighter rounded-lg shadow-xl overflow-hidden max-h-64 overflow-y-auto"
+            style={{
+              top: autocomplete.position.top,
+              left: autocomplete.position.left,
+              minWidth: '280px',
+            }}
+          >
+            {autocomplete.suggestions.map((field, index) => (
+              <div
+                key={field.name}
+                className={`px-3 py-2 cursor-pointer flex items-center justify-between gap-4 ${
+                  index === autocomplete.selectedIndex 
+                    ? 'bg-discord-accent text-white autocomplete-selected' 
+                    : 'hover:bg-discord-light text-discord-text'
+                }`}
+                onClick={() => applySuggestion(field)}
+                onMouseEnter={() => setAutocomplete(prev => ({ ...prev, selectedIndex: index }))}
+              >
+                <div className="min-w-0 flex-1">
+                  <div className="text-sm font-medium truncate">{field.name}</div>
+                  <div className={`text-xs truncate ${index === autocomplete.selectedIndex ? 'text-white/70' : 'text-discord-text-muted'}`}>
+                    {field.label}
+                  </div>
+                </div>
+                <span className={`text-xs font-mono flex-shrink-0 ${
+                  index === autocomplete.selectedIndex ? 'text-white/70' : getFieldTypeColor(field.type)
+                }`}>
+                  {field.type}
+                </span>
+              </div>
+            ))}
+            <div className="px-3 py-1.5 border-t border-discord-lighter bg-discord-darker text-xs text-discord-text-muted flex items-center gap-3">
+              <span><kbd className="px-1 py-0.5 bg-discord-light rounded text-[10px]">↑↓</kbd> navigate</span>
+              <span><kbd className="px-1 py-0.5 bg-discord-light rounded text-[10px]">Tab</kbd> complete</span>
+              <span><kbd className="px-1 py-0.5 bg-discord-light rounded text-[10px]">Esc</kbd> close</span>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Action buttons */}

@@ -519,6 +519,11 @@
             color: var(--discord-accent);
         }
         
+        .status-done {
+            background: rgba(35, 165, 89, 0.2);
+            color: var(--discord-success);
+        }
+        
         .roadmap-card ul {
             list-style: none;
         }
@@ -537,6 +542,15 @@
             color: var(--discord-text-muted);
             font-size: 0.75rem;
             margin-top: 0.2rem;
+        }
+        
+        .roadmap-card li.done {
+            color: var(--discord-success);
+        }
+        
+        .roadmap-card li.done::before {
+            content: "✓";
+            color: var(--discord-success);
         }
         
         /* Footer */
@@ -705,6 +719,11 @@
             </div>
             
             <div class="feature-card">
+                <div class="feature-icon">⚡</div>
+                <h3>Smart Autocomplete</h3>
+                <p>Field autocomplete as you type in the query editor. Use arrow keys to navigate and Tab to complete.</p>
+            </div>
+                        <div class="feature-card">
                 <div class="feature-icon">💾</div>
                 <h3>Saved Queries</h3>
                 <p>Save your frequently used queries per object. Update them as needed and track when they were last run.</p>
@@ -791,7 +810,7 @@
                     <span class="status status-next">In Progress</span>
                 </h3>
                 <ul>
-                    <li>Field autocomplete in query editor</li>
+                    <li class="done">Field autocomplete in query editor</li>
                     <li>Recent queries quick access</li>
                     <li>Query history with search</li>
                     <li>SOQL syntax highlighting</li>
