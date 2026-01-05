@@ -136,34 +136,61 @@ input:focus, textarea:focus, select:focus {
 
 /* Code editor styles */
 .query-editor {
-  @apply font-mono text-sm bg-discord-darker text-discord-text p-4 rounded-lg;
+  @apply font-mono text-sm bg-discord-darker rounded-lg;
   @apply border border-discord-light focus:border-discord-accent;
+  padding: 16px;
   min-height: 150px;
-  resize: vertical;
+  resize: none;
   position: relative;
+  line-height: 1.5;
 }
 
 /* Transparent textarea overlay for syntax highlighting */
-.query-editor-transparent {
+.query-editor.query-editor-transparent {
   background: transparent !important;
-  color: transparent;
+  color: transparent !important;
+  -webkit-text-fill-color: transparent !important;
   caret-color: #fff;
-  position: relative;
-  z-index: 1;
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 2;
+  width: 100%;
+  height: 100%;
+  overflow: auto;
+  resize: none;
 }
 
 .query-editor-transparent::placeholder {
-  color: #72767d;
+  color: #72767d !important;
+  -webkit-text-fill-color: #72767d !important;
+}
+
+/* Query editor container */
+.query-editor-container {
+  position: relative;
+  min-height: 150px;
+  background: #1e1f22;
+  border: 1px solid #383a40;
+  border-radius: 0.5rem;
+}
+
+.query-editor-container:focus-within {
+  border-color: #5865f2;
 }
 
 /* Syntax highlighting layer */
 .soql-highlight-layer {
-  @apply font-mono text-sm p-4;
+  @apply font-mono text-sm;
+  padding: 16px;
   margin: 0;
-  z-index: 0;
   line-height: 1.5;
   word-wrap: break-word;
   overflow-wrap: break-word;
+  white-space: pre-wrap;
+  color: #dbdee1;
 }
 
 /* Button variants */

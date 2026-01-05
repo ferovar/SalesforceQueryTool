@@ -51,6 +51,7 @@ const QueryBuilder: React.FC<QueryBuilderProps> = ({
   
   // Autocomplete state
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const highlightRef = useRef<HTMLDivElement>(null);
   const autocompleteRef = useRef<HTMLDivElement>(null);
   const [autocomplete, setAutocomplete] = useState<AutocompleteState>({
     isVisible: false,
@@ -299,6 +300,14 @@ const QueryBuilder: React.FC<QueryBuilderProps> = ({
       }
     }
   }, [autocomplete.selectedIndex, autocomplete.isVisible]);
+
+  // Sync scroll between textarea and highlighting layer
+  const handleTextareaScroll = useCallback(() => {
+    if (textareaRef.current && highlightRef.current) {
+      highlightRef.current.scrollTop = textareaRef.current.scrollTop;
+      highlightRef.current.scrollLeft = textareaRef.current.scrollLeft;
+    }
+  }, []);
 
   // Format relative time
   const formatRelativeTime = (dateStr: string | null): string => {
@@ -851,18 +860,24 @@ const QueryBuilder: React.FC<QueryBuilderProps> = ({
         <label className="block text-sm font-medium text-discord-text-muted mb-2">
           SOQL Query
         </label>
-        <div className="relative">
-          {/* Syntax highlighting layer */}
-          <SoqlHighlighter query={query} />
-          {/* Transparent textarea on top */}
+        <div className="query-editor-container">
+          {/* Syntax highlighting layer - behind textarea */}
+          <div 
+            ref={highlightRef}
+            className="overflow-auto"
+            style={{ pointerEvents: 'none', minHeight: '150px' }}
+          >
+            <SoqlHighlighter query={query} />
+          </div>
+          {/* Textarea for input - on top with transparent text */}
           <textarea
             ref={textareaRef}
             value={query}
             onChange={handleQueryInputChange}
             onKeyDown={handleKeyDown}
+            onScroll={handleTextareaScroll}
             placeholder="SELECT Id, Name FROM Account LIMIT 100"
-            className="query-editor query-editor-transparent w-full"
-            rows={6}
+            className="query-editor query-editor-transparent"
             spellCheck={false}
           />
           {/* Copy button - appears on hover */}
@@ -871,6 +886,7 @@ const QueryBuilder: React.FC<QueryBuilderProps> = ({
               onClick={handleCopyQuery}
               className="absolute top-2 right-2 p-1.5 rounded bg-discord-darker/80 text-discord-text-muted hover:text-discord-text hover:bg-discord-lighter opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1"
               title="Copy query to clipboard"
+              style={{ zIndex: 3 }}
             >
               {showCopiedToast ? (
                 <>

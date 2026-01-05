@@ -136,18 +136,57 @@ const ResultsTable: React.FC<ResultsTableProps> = ({
     return field.updateable;
   }, [getFieldMetadata]);
 
-  // Extract columns from the first result (excluding metadata)
-  const columns = useMemo(() => {
+  // Helper function to flatten nested objects into dot-notation columns
+  const flattenRecord = useCallback((record: any, prefix: string = ''): Record<string, any> => {
+    const result: Record<string, any> = {};
+    
+    for (const key of Object.keys(record)) {
+      if (key === 'attributes') continue; // Skip Salesforce metadata
+      
+      const value = record[key];
+      const newKey = prefix ? `${prefix}.${key}` : key;
+      
+      if (value !== null && typeof value === 'object' && !Array.isArray(value)) {
+        // Check if it's a Salesforce relationship object (has 'attributes' property)
+        if (value.attributes) {
+          // Recursively flatten the related object
+          const nested = flattenRecord(value, newKey);
+          Object.assign(result, nested);
+        } else {
+          // Simple nested object without attributes - flatten it too
+          const nested = flattenRecord(value, newKey);
+          Object.assign(result, nested);
+        }
+      } else {
+        result[newKey] = value;
+      }
+    }
+    
+    return result;
+  }, []);
+
+  // Flatten all results
+  const flattenedResults = useMemo(() => {
     if (!results || results.length === 0) return [];
-    const firstRecord = results[0];
-    return Object.keys(firstRecord).filter((key) => key !== 'attributes');
-  }, [results]);
+    return results.map(record => flattenRecord(record));
+  }, [results, flattenRecord]);
+
+  // Extract columns from flattened results (excluding metadata)
+  const columns = useMemo(() => {
+    if (!flattenedResults || flattenedResults.length === 0) return [];
+    // Collect all unique keys from all records to handle sparse data
+    const allKeys = new Set<string>();
+    flattenedResults.forEach(record => {
+      Object.keys(record).forEach(key => allKeys.add(key));
+    });
+    return Array.from(allKeys);
+  }, [flattenedResults]);
 
   // Sort results
   const sortedResults = useMemo(() => {
-    if (!results || !sortColumn) return results;
+    if (!flattenedResults || !sortColumn) return flattenedResults;
 
-    return [...results].sort((a, b) => {
+    return [...flattenedResults].sort((a, b) => {
       const aVal = a[sortColumn];
       const bVal = b[sortColumn];
 
@@ -164,7 +203,7 @@ const ResultsTable: React.FC<ResultsTableProps> = ({
       if (aVal > bVal) return sortDirection === 'asc' ? 1 : -1;
       return 0;
     });
-  }, [results, sortColumn, sortDirection]);
+  }, [flattenedResults, sortColumn, sortDirection]);
 
   const handleSort = (column: string) => {
     if (sortColumn === column) {
