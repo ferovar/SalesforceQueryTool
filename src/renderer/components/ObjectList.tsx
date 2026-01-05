@@ -43,6 +43,19 @@ const ObjectList: React.FC<ObjectListProps> = ({
     }
   }, []);
 
+  // Track when selectedObject changes (e.g., from pasted query auto-detection)
+  useEffect(() => {
+    if (selectedObject && !recentObjects.includes(selectedObject.name)) {
+      const updated = [selectedObject.name, ...recentObjects.filter(name => name !== selectedObject.name)].slice(0, MAX_RECENT_OBJECTS);
+      setRecentObjects(updated);
+      try {
+        localStorage.setItem(RECENT_OBJECTS_KEY, JSON.stringify(updated));
+      } catch (e) {
+        console.error('Error saving recent objects:', e);
+      }
+    }
+  }, [selectedObject?.name]);
+
   // Track when an object is selected
   const handleObjectSelect = (obj: SalesforceObject) => {
     // Update recent objects

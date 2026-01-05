@@ -160,6 +160,32 @@ const MainPage: React.FC<MainPageProps> = ({ session, onOpenSettings }) => {
     setQueryError('Query cancelled by user');
   };
 
+  // Handle auto-detection of object from pasted query
+  const handleObjectDetected = async (objectName: string) => {
+    // Find the object in the list (case-insensitive)
+    const obj = objects.find(o => o.name.toLowerCase() === objectName.toLowerCase());
+    if (obj && (!selectedObject || obj.name !== selectedObject.name)) {
+      // Select the object but keep the current query
+      const currentQuery = query;
+      setSelectedObject(obj);
+      setIsLoadingDescription(true);
+      setObjectDescription(null);
+      
+      try {
+        const result = await window.electronAPI.salesforce.describeObject(obj.name);
+        if (result.success && result.data) {
+          setObjectDescription(result.data);
+          // Keep the pasted query, don't replace with default
+          setQuery(currentQuery);
+        }
+      } catch (err) {
+        console.error('Error describing object:', err);
+      } finally {
+        setIsLoadingDescription(false);
+      }
+    }
+  };
+
   // Parse LIMIT from a query string
   const parseLimitFromQuery = (queryStr: string): number | null => {
     const limitMatch = queryStr.match(/\bLIMIT\s+(\d+)\s*$/i);
@@ -236,6 +262,7 @@ const MainPage: React.FC<MainPageProps> = ({ session, onOpenSettings }) => {
                 isExecuting={isExecutingQuery}
                 selectedLimit={selectedLimit}
                 onLimitChange={setSelectedLimit}
+                onObjectDetected={handleObjectDetected}
               />
             </div>
 
@@ -273,20 +300,59 @@ const MainPage: React.FC<MainPageProps> = ({ session, onOpenSettings }) => {
             </div>
           </>
         ) : (
-          <div className="flex-1 flex items-center justify-center">
-            <div className="text-center">
-              <svg className="w-24 h-24 mx-auto mb-4 text-discord-lighter" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-              </svg>
-              <h2 className="text-xl font-semibold text-discord-text mb-2">
-                Select an Object
-              </h2>
-              <p className="text-discord-text-muted max-w-md">
-                Choose an object from the sidebar to start building your SOQL query.
-                You can search for objects using the filter above.
-              </p>
+          <>
+            {/* Query Builder - shown even without object selected */}
+            <div className="flex-shrink-0 border-b border-discord-darker">
+              <QueryBuilder
+                selectedObject={null}
+                objectDescription={null}
+                query={query}
+                onQueryChange={setQuery}
+                onExecuteQuery={handleExecuteQuery}
+                isLoading={false}
+                isExecuting={isExecutingQuery}
+                selectedLimit={selectedLimit}
+                onLimitChange={setSelectedLimit}
+                onObjectDetected={handleObjectDetected}
+              />
             </div>
-          </div>
+
+            {/* Results Table or Placeholder */}
+            <div className="flex-1 overflow-hidden">
+              {queryResults !== null || queryError ? (
+                <ResultsTable
+                  results={queryResults}
+                  isLoading={isExecutingQuery}
+                  error={queryError}
+                  totalRecords={totalRecords}
+                  onExportCsv={handleExportCsv}
+                  objectDescription={null}
+                  disableEditing={true}
+                  editingDisabledReason="Select an object for inline editing"
+                  sourceOrgUrl={session.instanceUrl}
+                  sourceUsername={session.username}
+                  executionStartTime={queryStartTime}
+                  onCancelQuery={handleCancelQuery}
+                  onRecordUpdate={() => {}}
+                />
+              ) : (
+                <div className="flex-1 flex items-center justify-center h-full">
+                  <div className="text-center">
+                    <svg className="w-24 h-24 mx-auto mb-4 text-discord-lighter" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                    <h2 className="text-xl font-semibold text-discord-text mb-2">
+                      Paste a Query or Select an Object
+                    </h2>
+                    <p className="text-discord-text-muted max-w-md">
+                      Paste a SOQL query above to auto-detect the object, or choose
+                      an object from the sidebar to start building your query.
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
+          </>
         )}
       </div>
 

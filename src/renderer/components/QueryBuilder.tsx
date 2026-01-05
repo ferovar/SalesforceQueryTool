@@ -14,7 +14,7 @@ const LIMIT_OPTIONS = [
 ];
 
 interface QueryBuilderProps {
-  selectedObject: SalesforceObject;
+  selectedObject: SalesforceObject | null;
   objectDescription: ObjectDescription | null;
   query: string;
   onQueryChange: (query: string) => void;
@@ -23,6 +23,7 @@ interface QueryBuilderProps {
   isExecuting: boolean;
   selectedLimit: number;
   onLimitChange: (limit: number) => void;
+  onObjectDetected?: (objectName: string) => void;
 }
 
 interface AutocompleteState {
@@ -44,6 +45,7 @@ const QueryBuilder: React.FC<QueryBuilderProps> = ({
   isExecuting,
   selectedLimit,
   onLimitChange,
+  onObjectDetected,
 }) => {
   const [showFieldPicker, setShowFieldPicker] = useState(false);
   const [selectedFields, setSelectedFields] = useState<Set<string>>(new Set());
@@ -81,13 +83,32 @@ const QueryBuilder: React.FC<QueryBuilderProps> = ({
 
   // Load saved queries when object changes
   useEffect(() => {
+    if (!selectedObject) {
+      setSavedQueries([]);
+      return;
+    }
     const loadSavedQueries = async () => {
       const queries = await window.electronAPI.queries.getForObject(selectedObject.name);
       setSavedQueries(queries);
     };
     loadSavedQueries();
     setActiveSavedQuery(null); // Clear active query when switching objects
-  }, [selectedObject.name]);
+  }, [selectedObject?.name]);
+
+  // Detect object from query and notify parent
+  useEffect(() => {
+    if (!onObjectDetected) return;
+    
+    // Extract object name from FROM clause
+    const fromMatch = query.match(/\bFROM\s+([a-zA-Z_][a-zA-Z0-9_]*)/i);
+    if (fromMatch) {
+      const detectedObject = fromMatch[1];
+      // Only trigger if it's different from current selection
+      if (!selectedObject || selectedObject.name.toLowerCase() !== detectedObject.toLowerCase()) {
+        onObjectDetected(detectedObject);
+      }
+    }
+  }, [query, selectedObject?.name, onObjectDetected]);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -329,7 +350,7 @@ const QueryBuilder: React.FC<QueryBuilderProps> = ({
 
   // Handle save query (for Save As New)
   const handleSaveQuery = async () => {
-    if (!newQueryName.trim() || !query.trim()) return;
+    if (!selectedObject || !newQueryName.trim() || !query.trim()) return;
     
     setSavingQuery(true);
     try {
@@ -361,7 +382,7 @@ const QueryBuilder: React.FC<QueryBuilderProps> = ({
 
   // Handle immediate update of existing query
   const handleUpdateQuery = async () => {
-    if (!activeSavedQuery || !query.trim()) return;
+    if (!selectedObject || !activeSavedQuery || !query.trim()) return;
     
     const result = await window.electronAPI.queries.save(
       selectedObject.name,
@@ -515,7 +536,7 @@ const QueryBuilder: React.FC<QueryBuilderProps> = ({
     
     // Try to preserve the rest of the query (FROM clause, WHERE, ORDER BY, LIMIT, etc.)
     const fromMatch = query.match(/\s+FROM\s+[\s\S]*/i);
-    const restOfQuery = fromMatch ? fromMatch[0] : `\nFROM ${selectedObject.name}\nLIMIT 100`;
+    const restOfQuery = fromMatch ? fromMatch[0] : (selectedObject ? `\nFROM ${selectedObject.name}\nLIMIT 100` : '');
     
     const newQuery = `SELECT ${fieldsStr}${restOfQuery}`;
     onQueryChange(newQuery);
@@ -549,17 +570,30 @@ const QueryBuilder: React.FC<QueryBuilderProps> = ({
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
         <div>
-          <h2 className="text-lg font-semibold text-discord-text">
-            {selectedObject.label}
-          </h2>
-          <p className="text-sm text-discord-text-muted">
-            {selectedObject.name}
-            {selectedObject.custom && (
-              <span className="ml-2 text-xs px-1.5 py-0.5 bg-discord-warning/20 text-discord-warning rounded">
-                Custom Object
-              </span>
-            )}
-          </p>
+          {selectedObject ? (
+            <>
+              <h2 className="text-lg font-semibold text-discord-text">
+                {selectedObject.label}
+              </h2>
+              <p className="text-sm text-discord-text-muted">
+                {selectedObject.name}
+                {selectedObject.custom && (
+                  <span className="ml-2 text-xs px-1.5 py-0.5 bg-discord-warning/20 text-discord-warning rounded">
+                    Custom Object
+                  </span>
+                )}
+              </p>
+            </>
+          ) : (
+            <>
+              <h2 className="text-lg font-semibold text-discord-text">
+                SOQL Query Editor
+              </h2>
+              <p className="text-sm text-discord-text-muted">
+                Paste a query to auto-detect the object
+              </p>
+            </>
+          )}
         </div>
 
         <div className="flex items-center gap-2">
@@ -651,7 +685,7 @@ const QueryBuilder: React.FC<QueryBuilderProps> = ({
               <div className="absolute top-full left-0 mt-1 w-80 bg-discord-dark rounded-lg shadow-xl border border-discord-lighter z-50 animate-slide-in">
                 <div className="p-2 border-b border-discord-lighter">
                   <p className="text-xs text-discord-text-muted uppercase font-semibold">
-                    Saved Queries for {selectedObject.name}
+                    Saved Queries{selectedObject ? ` for ${selectedObject.name}` : ''}
                   </p>
                 </div>
                 <div className="max-h-64 overflow-y-auto">
@@ -821,7 +855,7 @@ const QueryBuilder: React.FC<QueryBuilderProps> = ({
                 }}
               />
               <p className="mt-2 text-xs text-discord-text-muted">
-                This query will be saved for {selectedObject.label}
+                {selectedObject ? `This query will be saved for ${selectedObject.label}` : 'Select an object first to save queries'}
               </p>
             </div>
 
