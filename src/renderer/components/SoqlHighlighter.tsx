@@ -33,11 +33,11 @@ const FUNCTIONS = [
   'GROUPING', 'DISTANCE', 'GEOLOCATION'
 ];
 
-// Operators
-const OPERATORS = ['=', '!=', '<>', '<', '>', '<=', '>=', ':', '+', '-'];
+// Operators (including punctuation like commas and periods)
+const OPERATORS = ['=', '!=', '<>', '<', '>', '<=', '>=', ':', '+', '-', ',', '.', '(', ')'];
 
 // Token types
-type TokenType = 'keyword' | 'function' | 'string' | 'number' | 'operator' | 'field' | 'object' | 'comment' | 'text';
+type TokenType = 'keyword' | 'function' | 'string' | 'number' | 'operator' | 'field' | 'object' | 'comment' | 'punctuation' | 'text';
 
 interface Token {
   type: TokenType;
@@ -112,18 +112,11 @@ const tokenize = (query: string): Token[] => {
       continue;
     }
     
-    // Operators
+    // Operators (including commas, periods, parentheses)
     if (OPERATORS.some(op => query.slice(i, i + op.length) === op)) {
       const op = OPERATORS.find(op => query.slice(i, i + op.length) === op)!;
       tokens.push({ type: 'operator', value: op });
       i += op.length;
-      continue;
-    }
-    
-    // Parentheses, commas, dots
-    if ('(),.'.includes(query[i])) {
-      tokens.push({ type: 'text', value: query[i] });
-      i++;
       continue;
     }
     
@@ -179,37 +172,66 @@ const SoqlHighlighter: React.FC<SoqlHighlighterProps> = ({ query }) => {
     const tokens = tokenize(query);
     
     return tokens.map((token, index) => {
+      let color = '#dbdee1';
+      let fontWeight: number | undefined;
+      let fontStyle: string | undefined;
+      
       switch (token.type) {
         case 'keyword':
-          return <span key={index} className="text-purple-400 font-semibold">{token.value}</span>;
+          color = '#c084fc';
+          fontWeight = 600;
+          break;
         case 'function':
-          return <span key={index} className="text-yellow-400">{token.value}</span>;
+          color = '#facc15';
+          break;
         case 'string':
-          return <span key={index} className="text-green-400">{token.value}</span>;
+          color = '#4ade80';
+          break;
         case 'number':
-          return <span key={index} className="text-orange-400">{token.value}</span>;
+          color = '#fb923c';
+          break;
         case 'operator':
-          return <span key={index} className="text-pink-400">{token.value}</span>;
+          color = '#f472b6';
+          break;
         case 'field':
-          return <span key={index} className="text-blue-300">{token.value}</span>;
+          color = '#93c5fd';
+          break;
         case 'object':
-          return <span key={index} className="text-cyan-400 font-semibold">{token.value}</span>;
+          color = '#22d3ee';
+          fontWeight = 600;
+          break;
         case 'comment':
-          return <span key={index} className="text-gray-500 italic">{token.value}</span>;
-        default:
-          return <span key={index}>{token.value}</span>;
+          color = '#6b7280';
+          fontStyle = 'italic';
+          break;
+        case 'text':
+          color = '#dbdee1';
+          break;
       }
+      
+      return (
+        <span 
+          key={index} 
+          style={{ color, fontWeight, fontStyle }}
+        >
+          {token.value}
+        </span>
+      );
     });
   }, [query]);
 
   return (
     <pre 
-      className="soql-highlight-layer absolute inset-0 pointer-events-none overflow-hidden whitespace-pre-wrap break-words"
+      className="soql-highlight-layer whitespace-pre-wrap break-words"
+      style={{ 
+        color: '#dbdee1', 
+        margin: 0, 
+        minHeight: '100%', 
+        width: '100%'
+      }}
       aria-hidden="true"
     >
       {highlightedContent}
-      {/* Add a trailing space to match textarea behavior */}
-      <span> </span>
     </pre>
   );
 };

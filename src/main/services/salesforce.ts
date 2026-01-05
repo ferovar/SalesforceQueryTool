@@ -391,14 +391,36 @@ export class SalesforceService {
       throw new Error('Export cancelled');
     }
 
-    // Get all unique keys from the data (excluding Salesforce metadata)
-    const excludeKeys = ['attributes'];
-    const headers = new Set<string>();
-    data.forEach((record) => {
-      Object.keys(record).forEach((key) => {
-        if (!excludeKeys.includes(key)) {
-          headers.add(key);
+    // Helper function to flatten nested objects into dot-notation keys
+    const flattenRecord = (record: any, prefix: string = ''): Record<string, any> => {
+      const result: Record<string, any> = {};
+      
+      for (const key of Object.keys(record)) {
+        if (key === 'attributes') continue; // Skip Salesforce metadata
+        
+        const value = record[key];
+        const newKey = prefix ? `${prefix}.${key}` : key;
+        
+        if (value !== null && typeof value === 'object' && !Array.isArray(value)) {
+          // Recursively flatten nested objects (including those with 'attributes')
+          const nested = flattenRecord(value, newKey);
+          Object.assign(result, nested);
+        } else {
+          result[newKey] = value;
         }
+      }
+      
+      return result;
+    };
+
+    // Flatten all records
+    const flattenedData = data.map(record => flattenRecord(record));
+
+    // Get all unique keys from the flattened data
+    const headers = new Set<string>();
+    flattenedData.forEach((record) => {
+      Object.keys(record).forEach((key) => {
+        headers.add(key);
       });
     });
 
@@ -411,7 +433,7 @@ export class SalesforceService {
     csvRows.push(headerArray.map(h => `"${h}"`).join(','));
 
     // Add data rows
-    data.forEach((record) => {
+    flattenedData.forEach((record) => {
       const row = headerArray.map((header) => {
         let value = record[header];
         if (value === null || value === undefined) {

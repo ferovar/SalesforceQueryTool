@@ -1,6 +1,7 @@
 import React, { useMemo, useState, useRef, useEffect, useCallback } from 'react';
 import type { ObjectDescription, SalesforceField } from '../types/electron.d';
 import RecordMigrationModal from './RecordMigrationModal';
+import { useSettings } from '../contexts/SettingsContext';
 
 interface ResultsTableProps {
   results: any[] | null;
@@ -46,6 +47,7 @@ const ResultsTable: React.FC<ResultsTableProps> = ({
   executionStartTime = null,
   onCancelQuery,
 }) => {
+  const { settings } = useSettings();
   const [sortColumn, setSortColumn] = useState<string | null>(null);
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
   const [editingCell, setEditingCell] = useState<EditingCell | null>(null);
@@ -134,18 +136,57 @@ const ResultsTable: React.FC<ResultsTableProps> = ({
     return field.updateable;
   }, [getFieldMetadata]);
 
-  // Extract columns from the first result (excluding metadata)
-  const columns = useMemo(() => {
+  // Helper function to flatten nested objects into dot-notation columns
+  const flattenRecord = useCallback((record: any, prefix: string = ''): Record<string, any> => {
+    const result: Record<string, any> = {};
+    
+    for (const key of Object.keys(record)) {
+      if (key === 'attributes') continue; // Skip Salesforce metadata
+      
+      const value = record[key];
+      const newKey = prefix ? `${prefix}.${key}` : key;
+      
+      if (value !== null && typeof value === 'object' && !Array.isArray(value)) {
+        // Check if it's a Salesforce relationship object (has 'attributes' property)
+        if (value.attributes) {
+          // Recursively flatten the related object
+          const nested = flattenRecord(value, newKey);
+          Object.assign(result, nested);
+        } else {
+          // Simple nested object without attributes - flatten it too
+          const nested = flattenRecord(value, newKey);
+          Object.assign(result, nested);
+        }
+      } else {
+        result[newKey] = value;
+      }
+    }
+    
+    return result;
+  }, []);
+
+  // Flatten all results
+  const flattenedResults = useMemo(() => {
     if (!results || results.length === 0) return [];
-    const firstRecord = results[0];
-    return Object.keys(firstRecord).filter((key) => key !== 'attributes');
-  }, [results]);
+    return results.map(record => flattenRecord(record));
+  }, [results, flattenRecord]);
+
+  // Extract columns from flattened results (excluding metadata)
+  const columns = useMemo(() => {
+    if (!flattenedResults || flattenedResults.length === 0) return [];
+    // Collect all unique keys from all records to handle sparse data
+    const allKeys = new Set<string>();
+    flattenedResults.forEach(record => {
+      Object.keys(record).forEach(key => allKeys.add(key));
+    });
+    return Array.from(allKeys);
+  }, [flattenedResults]);
 
   // Sort results
   const sortedResults = useMemo(() => {
-    if (!results || !sortColumn) return results;
+    if (!flattenedResults || !sortColumn) return flattenedResults;
 
-    return [...results].sort((a, b) => {
+    return [...flattenedResults].sort((a, b) => {
       const aVal = a[sortColumn];
       const bVal = b[sortColumn];
 
@@ -162,7 +203,7 @@ const ResultsTable: React.FC<ResultsTableProps> = ({
       if (aVal > bVal) return sortDirection === 'asc' ? 1 : -1;
       return 0;
     });
-  }, [results, sortColumn, sortDirection]);
+  }, [flattenedResults, sortColumn, sortDirection]);
 
   const handleSort = (column: string) => {
     if (sortColumn === column) {
@@ -503,31 +544,38 @@ const ResultsTable: React.FC<ResultsTableProps> = ({
               {selectedRecords.size} selected
             </span>
           )}
-          {objectDescription && !disableEditing && selectedRecords.size === 0 && (
+          {objectDescription && !disableEditing && !settings.disableInlineEditing && selectedRecords.size === 0 && (
             <span className="text-xs text-discord-text-muted bg-discord-lighter px-2 py-0.5 rounded">
               Double-click editable cells to edit inline
             </span>
           )}
-          {objectDescription && disableEditing && editingDisabledReason && (
+          {objectDescription && (disableEditing || settings.disableInlineEditing) && (
             <span className="text-xs text-discord-warning bg-discord-warning/10 px-2 py-0.5 rounded flex items-center gap-1">
               <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
               </svg>
-              {editingDisabledReason}
+              {settings.disableInlineEditing ? 'Inline editing disabled in settings' : editingDisabledReason}
             </span>
           )}
         </div>
 
         <div className="flex items-center gap-2">
-          {selectedRecords.size > 0 && (
+          {!settings.disableMigrationFeature && (
             <button
               onClick={() => setShowMigrationModal(true)}
-              className="btn btn-primary text-sm flex items-center gap-2"
+              disabled={selectedRecords.size === 0}
+              className={`btn text-sm flex items-center gap-2 ${
+                selectedRecords.size > 0 
+                  ? 'btn-primary' 
+                  : 'bg-discord-light text-discord-text-muted cursor-not-allowed opacity-50'
+              }`}
+              title={selectedRecords.size === 0 ? 'Select records to migrate' : undefined}
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
               </svg>
-              Push to Another Org
+              Migrate
+              <span className="px-1.5 py-0.5 text-[10px] font-semibold bg-discord-warning/20 text-discord-warning rounded">BETA</span>
             </button>
           )}
           <button
@@ -557,7 +605,7 @@ const ResultsTable: React.FC<ResultsTableProps> = ({
               </th>
               <th className="w-12 text-center">#</th>
               {columns.map((column) => {
-                const canEdit = !disableEditing && isFieldEditable(column);
+                const canEdit = !disableEditing && !settings.disableInlineEditing && isFieldEditable(column);
                 return (
                   <th
                     key={column}
@@ -608,7 +656,7 @@ const ResultsTable: React.FC<ResultsTableProps> = ({
                   {index + 1}
                 </td>
                 {columns.map((column) => {
-                  const canEdit = !disableEditing && isFieldEditable(column) && record.Id;
+                  const canEdit = !disableEditing && !settings.disableInlineEditing && isFieldEditable(column) && record.Id;
                   const isEditing = editingCell?.recordId === record.Id && editingCell?.column === column;
                   const cellError = getCellError(record.Id, column);
                   const statusClass = getCellStatusClass(record.Id, column);

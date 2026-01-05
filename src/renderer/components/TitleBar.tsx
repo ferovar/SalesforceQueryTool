@@ -4,10 +4,11 @@ interface TitleBarProps {
   isLoggedIn: boolean;
   onLogout: () => void;
   instanceUrl?: string;
+  username?: string;
   onOpenSettings: () => void;
 }
 
-const TitleBar: React.FC<TitleBarProps> = ({ isLoggedIn, onLogout, instanceUrl, onOpenSettings }) => {
+const TitleBar: React.FC<TitleBarProps> = ({ isLoggedIn, onLogout, instanceUrl, username, onOpenSettings }) => {
   const handleMinimize = () => window.electronAPI.minimizeWindow();
   const handleMaximize = () => window.electronAPI.maximizeWindow();
   const handleClose = () => window.electronAPI.closeWindow();
@@ -31,7 +32,7 @@ const TitleBar: React.FC<TitleBarProps> = ({ isLoggedIn, onLogout, instanceUrl, 
           <div className="flex items-center gap-2 no-drag">
             <div className="w-2 h-2 rounded-full bg-discord-success animate-pulse" />
             <span className="text-discord-text-muted">
-              Connected to {instanceUrl.replace('https://', '')}
+              Connected to {instanceUrl.replace('https://', '')}{username && ` (${username})`}
             </span>
             <button
               onClick={onLogout}
