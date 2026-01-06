@@ -88,12 +88,52 @@ const MainPage: React.FC<MainPageProps> = ({ session, onOpenSettings }) => {
     setQueryStartTime(Date.now());
     queryCancelledRef.current = false;
 
-    // Build full query with limit if specified
-    const fullQuery = limit > 0 ? `${query.trim()}\nLIMIT ${limit}` : query.trim();
-
     // Extract object name from query for history
     const objectMatch = query.match(/FROM\s+(\w+)/i);
     const objectName = objectMatch ? objectMatch[1] : selectedObject?.name || 'Unknown';
+
+    // Handle SELECT * by expanding to all fields
+    let expandedQuery = query.trim();
+    const selectStarMatch = expandedQuery.match(/^SELECT\s+\*\s+FROM/i);
+    
+    if (selectStarMatch && objectName !== 'Unknown') {
+      try {
+        // Get object description (use cached if available for the same object)
+        let fields: SalesforceField[] = [];
+        
+        if (objectDescription && objectDescription.name.toLowerCase() === objectName.toLowerCase()) {
+          fields = objectDescription.fields;
+        } else {
+          // Fetch the object description
+          const descResult = await window.electronAPI.salesforce.describeObject(objectName);
+          if (descResult.success && descResult.data) {
+            fields = descResult.data.fields;
+          } else {
+            throw new Error(`Could not describe object ${objectName}: ${descResult.error}`);
+          }
+        }
+        
+        // Get all queryable field names (exclude compound fields that can't be queried directly)
+        const fieldNames = fields
+          .filter(f => !['address', 'location'].includes(f.type.toLowerCase()))
+          .map(f => f.name)
+          .join(', ');
+        
+        // Replace SELECT * with the field list
+        expandedQuery = expandedQuery.replace(/^SELECT\s+\*\s+FROM/i, `SELECT ${fieldNames} FROM`);
+      } catch (err: any) {
+        setQueryError(`Failed to expand SELECT *: ${err.message}`);
+        setIsExecutingQuery(false);
+        setQueryStartTime(null);
+        return;
+      }
+    }
+
+    // Build full query with limit if specified
+    const fullQuery = limit > 0 ? `${expandedQuery}\nLIMIT ${limit}` : expandedQuery;
+    
+    // For history, store the original query (with SELECT * if used) for readability
+    const originalQueryWithLimit = limit > 0 ? `${query.trim()}\nLIMIT ${limit}` : query.trim();
 
     try {
       const result = await window.electronAPI.salesforce.executeQuery(fullQuery, includeDeleted);
@@ -107,9 +147,9 @@ const MainPage: React.FC<MainPageProps> = ({ session, onOpenSettings }) => {
         setQueryResults(result.data);
         setTotalRecords(result.data.length);
         
-        // Add to history (save the full query with limit)
+        // Add to history (save the original query for readability)
         await window.electronAPI.history.add({
-          query: fullQuery,
+          query: originalQueryWithLimit,
           objectName,
           recordCount: result.data.length,
           success: true,
@@ -121,7 +161,7 @@ const MainPage: React.FC<MainPageProps> = ({ session, onOpenSettings }) => {
         
         // Add failed query to history
         await window.electronAPI.history.add({
-          query: fullQuery,
+          query: originalQueryWithLimit,
           objectName,
           recordCount: 0,
           success: false,
@@ -140,7 +180,7 @@ const MainPage: React.FC<MainPageProps> = ({ session, onOpenSettings }) => {
       
       // Add failed query to history
       await window.electronAPI.history.add({
-        query: fullQuery,
+        query: originalQueryWithLimit,
         objectName,
         recordCount: 0,
         success: false,
