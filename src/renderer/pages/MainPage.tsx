@@ -121,9 +121,11 @@ const MainPage: React.FC<MainPageProps> = ({ session, onOpenSettings }) => {
           }
         }
         
-        // Get all queryable field names (exclude compound fields that can't be queried directly)
+        // Get all queryable field names (exclude compound fields and user-configured excluded fields)
+        const excludedFieldsLower = new Set(settings.excludedFields.map(f => f.toLowerCase()));
         const fieldNames = fields
           .filter(f => !['address', 'location'].includes(f.type.toLowerCase()))
+          .filter(f => !excludedFieldsLower.has(f.name.toLowerCase()))
           .map(f => f.name)
           .join(', ');
         

@@ -12,6 +12,7 @@ export interface AppSettings {
   // Query defaults
   defaultQueryLimit: number; // 0 means no limit
   autoSaveToHistory: boolean;
+  excludedFields: string[]; // Fields to exclude from SELECT * queries
   
   // UI preferences
   showRelationshipFields: boolean;
@@ -26,6 +27,13 @@ export const defaultSettings: AppSettings = {
   disableMigrationFeature: false,
   defaultQueryLimit: 0, // 0 means no limit
   autoSaveToHistory: true,
+  excludedFields: [
+    'SystemModstamp',
+    'LastReferencedDate',
+    'LastViewedDate',
+    'ConnectionReceivedId',
+    'ConnectionSentId',
+  ],
   showRelationshipFields: true,
   compactResultsView: false,
   showRecentObjectsFirst: true,
@@ -178,6 +186,12 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                 checked={localSettings.autoSaveToHistory}
                 onChange={(v) => handleChange('autoSaveToHistory', v)}
               />
+              <SettingTextList
+                label="Excluded Fields (SELECT *)"
+                description="Fields to exclude when expanding SELECT * queries. One field per line."
+                value={localSettings.excludedFields}
+                onChange={(v) => handleChange('excludedFields', v)}
+              />
             </div>
           </section>
 
@@ -328,5 +342,36 @@ const ShortcutRow: React.FC<ShortcutRowProps> = ({ keys, description }) => (
     </div>
   </div>
 );
+
+// Text list component for field exclusions
+interface SettingTextListProps {
+  label: string;
+  description: string;
+  value: string[];
+  onChange: (value: string[]) => void;
+}
+
+const SettingTextList: React.FC<SettingTextListProps> = ({ label, description, value, onChange }) => {
+  const handleTextChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const lines = e.target.value.split('\n').map(s => s.trim()).filter(s => s.length > 0);
+    onChange(lines);
+  };
+
+  return (
+    <div className="space-y-2">
+      <div>
+        <p className="text-sm text-discord-text">{label}</p>
+        <p className="text-xs text-discord-text-muted">{description}</p>
+      </div>
+      <textarea
+        value={value.join('\n')}
+        onChange={handleTextChange}
+        rows={4}
+        className="w-full bg-discord-darker border border-discord-lighter rounded px-3 py-2 text-sm text-discord-text font-mono focus:outline-none focus:border-discord-accent resize-none"
+        placeholder="FieldName1&#10;FieldName2&#10;FieldName3"
+      />
+    </div>
+  );
+};
 
 export default SettingsModal;
