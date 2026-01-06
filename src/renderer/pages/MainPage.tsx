@@ -28,6 +28,7 @@ const MainPage: React.FC<MainPageProps> = ({ session, onOpenSettings }) => {
   const [showHistory, setShowHistory] = useState(true);
   const [queryStartTime, setQueryStartTime] = useState<number | null>(null);
   const queryCancelledRef = useRef(false);
+  const isManualSelectionRef = useRef(false); // Track manual object selection to prevent auto-detect loops
   const [selectedLimit, setSelectedLimit] = useState<number>(settings.defaultQueryLimit);
 
   // Load objects on mount
@@ -52,6 +53,9 @@ const MainPage: React.FC<MainPageProps> = ({ session, onOpenSettings }) => {
   };
 
   const handleObjectSelect = async (obj: SalesforceObject) => {
+    // Set flag to prevent auto-detection from interfering
+    isManualSelectionRef.current = true;
+    
     setSelectedObject(obj);
     setIsLoadingDescription(true);
     setObjectDescription(null);
@@ -76,6 +80,10 @@ const MainPage: React.FC<MainPageProps> = ({ session, onOpenSettings }) => {
       console.error('Error describing object:', err);
     } finally {
       setIsLoadingDescription(false);
+      // Clear the flag after a short delay to allow state to settle
+      setTimeout(() => {
+        isManualSelectionRef.current = false;
+      }, 100);
     }
   };
 
@@ -202,6 +210,9 @@ const MainPage: React.FC<MainPageProps> = ({ session, onOpenSettings }) => {
 
   // Handle auto-detection of object from pasted query
   const handleObjectDetected = async (objectName: string) => {
+    // Don't auto-detect if manual selection is in progress
+    if (isManualSelectionRef.current) return;
+    
     // Find the object in the list (case-insensitive)
     const obj = objects.find(o => o.name.toLowerCase() === objectName.toLowerCase());
     if (obj && (!selectedObject || obj.name !== selectedObject.name)) {
