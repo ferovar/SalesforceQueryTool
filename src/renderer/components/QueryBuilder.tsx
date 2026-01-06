@@ -199,12 +199,34 @@ const QueryBuilder: React.FC<QueryBuilderProps> = ({
     const fromIndex = text.toUpperCase().indexOf('FROM');
     const inSelectClause = fromIndex === -1 || cursorPos < fromIndex;
     
-    // Also allow in WHERE clause for conditions
-    const whereMatch = upperText.match(/WHERE\s+$/i);
-    const andOrMatch = upperText.match(/\b(AND|OR)\s+$/i);
-    const operatorMatch = textBeforeWord.match(/[=<>!]+\s*$/);
+    // Check if we're in WHERE clause context
+    const whereIndex = upperText.lastIndexOf('WHERE');
+    const inWhereClause = whereIndex !== -1 && startPos > whereIndex;
     
-    if (selectMatch || (commaMatch && inSelectClause) || dotMatch || whereMatch || andOrMatch) {
+    // Check for specific WHERE clause triggers
+    const whereMatch = upperText.match(/WHERE\s*$/i);
+    const andOrMatch = upperText.match(/\b(AND|OR)\s*$/i);
+    const operatorMatch = textBeforeWord.match(/[=<>!]+\s*$/);
+    const comparisonMatch = textBeforeWord.match(/\b(LIKE|IN|NOT\s+IN|NOT\s+LIKE|INCLUDES|EXCLUDES)\s*$/i);
+    
+    // In WHERE clause: show autocomplete when typing a field name
+    // This includes: right after WHERE, after AND/OR, or at the start of a new condition
+    if (inWhereClause) {
+      // Check if we're at a position where a field name is expected
+      // After WHERE, AND, OR, or at start of expression (not after operator/value)
+      const lastChar = textBeforeWord.slice(-1);
+      const isAfterOperator = /[=<>!]/.test(lastChar) || operatorMatch || comparisonMatch;
+      const isAfterValue = textBeforeWord.match(/['"][^'"]*['"]\s*$/); // After a quoted string value
+      const isAfterNumber = textBeforeWord.match(/\d+\s*$/); // After a number
+      const isAfterParenValue = textBeforeWord.match(/\)\s*$/); // After closing paren (e.g., IN (...))
+      
+      // Show autocomplete if we're not after an operator or value (meaning we're typing a field name)
+      if (whereMatch || andOrMatch || (!isAfterOperator && !isAfterValue && !isAfterNumber && !isAfterParenValue)) {
+        return { show: true, prefix, startPos };
+      }
+    }
+    
+    if (selectMatch || (commaMatch && inSelectClause) || dotMatch) {
       return { show: true, prefix, startPos };
     }
     
