@@ -4,6 +4,8 @@ import LoginPage from './pages/LoginPage';
 import MainPage from './pages/MainPage';
 import SettingsModal from './components/SettingsModal';
 import PerformanceMonitor from './components/PerformanceMonitor';
+import StarfieldBackground from './components/StarfieldBackground';
+import NatureBackground from './components/NatureBackground';
 import { SettingsProvider, useSettings } from './contexts/SettingsContext';
 
 export interface UserSession {
@@ -79,6 +81,9 @@ function AppContent() {
 
   return (
     <div className="h-screen w-screen bg-discord-darker flex flex-col overflow-hidden">
+      {/* Animated Background */}
+      {settings.theme === 'starfield' ? <StarfieldBackground /> : <NatureBackground />}
+      
       <TitleBar 
         isLoggedIn={isLoggedIn} 
         onLogout={handleLogout}

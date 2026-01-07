@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 
+export type ThemeType = 'nature' | 'starfield';
+
 export interface AppSettings {
   // Performance
   showPerformanceMonitor: boolean;
@@ -18,6 +20,7 @@ export interface AppSettings {
   showRelationshipFields: boolean;
   compactResultsView: boolean;
   showRecentObjectsFirst: boolean;
+  theme: ThemeType;
 }
 
 export const defaultSettings: AppSettings = {
@@ -37,6 +40,7 @@ export const defaultSettings: AppSettings = {
   showRelationshipFields: true,
   compactResultsView: false,
   showRecentObjectsFirst: true,
+  theme: 'nature', // Default to nature theme
 };
 
 interface SettingsModalProps {
@@ -204,6 +208,16 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
               UI Preferences
             </h4>
             <div className="space-y-3">
+              <SettingSelect
+                label="Background Theme"
+                description="Choose your preferred animated background theme."
+                value={localSettings.theme}
+                options={[
+                  { value: 'nature', label: '🏕️ Nature (Waterfall & Campfire)' },
+                  { value: 'starfield', label: '⭐ Starfield (Space)' },
+                ]}
+                onChange={(v) => handleChange('theme', v as 'nature' | 'starfield')}
+              />
               <SettingToggle
                 label="Show Recent Objects First"
                 description="Sort recently used objects to the top of the object list."
