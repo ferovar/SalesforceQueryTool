@@ -1,23 +1,36 @@
 // Renderer process test setup
 import '@testing-library/jest-dom';
 
-// Suppress React act() warnings in tests
+// Suppress React act() warnings and other test-related console noise
 const originalError = console.error;
+const originalWarn = console.warn;
+
 beforeAll(() => {
-  console.error = (...args: any[]) => {
+  console.error = jest.fn((...args: any[]) => {
+    const message = args[0];
     if (
-      typeof args[0] === 'string' &&
-      args[0].includes('Warning: An update to') &&
-      args[0].includes('inside a test was not wrapped in act')
+      typeof message === 'string' &&
+      (message.includes('Warning: An update to') ||
+       message.includes('inside a test was not wrapped in act') ||
+       message.includes('Not implemented: HTMLFormElement.prototype.submit'))
     ) {
       return;
     }
     originalError.call(console, ...args);
-  };
+  });
+
+  console.warn = jest.fn((...args: any[]) => {
+    const message = args[0];
+    if (typeof message === 'string' && message.includes('act(')) {
+      return;
+    }
+    originalWarn.call(console, ...args);
+  });
 });
 
 afterAll(() => {
   console.error = originalError;
+  console.warn = originalWarn;
 });
 
 // Mock window.electronAPI
