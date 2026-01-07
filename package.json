@@ -1,7 +1,7 @@
 {
   "name": "salesforce-query-tool",
   "version": "1.0.0",
-  "description": "A modern Salesforce query tool for Windows - like SoqlX but better",
+  "description": "A modern Salesforce query tool - like SoqlX but better",
   "main": "dist/main/main.js",
   "author": "Your Name",
   "license": "MIT",
@@ -15,6 +15,9 @@
     "start": "electron .",
     "package": "npm run build && electron-builder --win",
     "package:dir": "npm run build && electron-builder --win --dir",
+    "package:mac": "npm run build && electron-builder --mac",
+    "package:linux": "npm run build && electron-builder --linux",
+    "package:all": "npm run build && electron-builder --win --mac --linux",
     "test": "jest",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
@@ -82,6 +85,56 @@
     },
     "portable": {
       "artifactName": "${productName}-Portable-${version}.${ext}"
+    },
+    "mac": {
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        },
+        {
+          "target": "zip",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        }
+      ],
+      "category": "public.app-category.developer-tools",
+      "hardenedRuntime": true,
+      "gatekeeperAssess": false,
+      "entitlements": "build/entitlements.mac.plist",
+      "entitlementsInherit": "build/entitlements.mac.plist"
+    },
+    "dmg": {
+      "contents": [
+        {
+          "x": 130,
+          "y": 220
+        },
+        {
+          "x": 410,
+          "y": 220,
+          "type": "link",
+          "path": "/Applications"
+        }
+      ],
+      "window": {
+        "width": 540,
+        "height": 380
+      }
+    },
+    "linux": {
+      "target": [
+        "AppImage",
+        "deb",
+        "rpm"
+      ],
+      "category": "Development",
+      "maintainer": "your-email@example.com"
     },
     "files": [
       "dist/**/*",

@@ -11,11 +11,19 @@ const StarfieldBackground: React.FC = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
+    console.log('StarfieldBackground mounted and useEffect running');
     const canvas = canvasRef.current;
-    if (!canvas) return;
+    if (!canvas) {
+      console.log('StarfieldBackground: canvas is null');
+      return;
+    }
 
     const ctx = canvas.getContext('2d');
-    if (!ctx) return;
+    if (!ctx) {
+      console.log('StarfieldBackground: context is null');
+      return;
+    }
+    console.log('StarfieldBackground: canvas and context ready, starting animation');
 
     let animationId: number;
     let stars: Star[] = [];

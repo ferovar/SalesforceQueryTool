@@ -77,6 +77,12 @@ function AppContent() {
     );
   }
 
+  // Debug log to see what theme is being used
+  console.log('Current theme:', settings.theme, 'Type:', typeof settings.theme);
+  console.log('Comparison result (theme === "nature"):', settings.theme === 'nature');
+  console.log('Comparison result (theme === "starfield"):', settings.theme === 'starfield');
+  console.log('Full settings object:', settings);
+
   return (
     <div className="h-screen w-screen bg-discord-darker flex flex-col overflow-hidden">
       <TitleBar 

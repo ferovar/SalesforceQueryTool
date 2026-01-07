@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import type { UserSession } from '../App';
 import type { SavedLogin, SavedOAuthLogin } from '../types/electron.d';
 import StarfieldBackground from '../components/StarfieldBackground';
+import { WavesBackground } from '../components/NatureBackground';
+import { useSettings } from '../contexts/SettingsContext';
 
 interface LoginPageProps {
   onLoginSuccess: (session: UserSession) => void;
@@ -203,10 +205,16 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess, onOpenSettings })
     }
   };
 
+  const { settings } = useSettings();
+
   return (
     <div className="h-full flex bg-discord-darker relative overflow-hidden">
-      {/* Animated starfield background */}
-      <StarfieldBackground />
+      {/* Animated background */}
+      {settings.theme === 'nature' ? (
+        <WavesBackground key="waves-bg" />
+      ) : (
+        <StarfieldBackground key="starfield-bg" />
+      )}
       
       {/* Loading Overlay */}
       {isLoading && (

@@ -5,6 +5,9 @@ import ObjectList from '../components/ObjectList';
 import QueryBuilder from '../components/QueryBuilder';
 import ResultsTable from '../components/ResultsTable';
 import QueryHistory from '../components/QueryHistory';
+import AmbientStarfield from '../components/AmbientStarfield';
+import AmbientWaves from '../components/AmbientWaves';
+import AnonymousApexModal from '../components/AnonymousApexModal';
 import { useSettings } from '../contexts/SettingsContext';
 
 interface MainPageProps {
@@ -28,7 +31,9 @@ const MainPage: React.FC<MainPageProps> = ({ session, onOpenSettings }) => {
   const [showHistory, setShowHistory] = useState(true);
   const [queryStartTime, setQueryStartTime] = useState<number | null>(null);
   const queryCancelledRef = useRef(false);
+  const isManualSelectionRef = useRef(false); // Track manual object selection to prevent auto-detect loops
   const [selectedLimit, setSelectedLimit] = useState<number>(settings.defaultQueryLimit);
+  const [isApexModalOpen, setIsApexModalOpen] = useState(false);
 
   // Load objects on mount
   useEffect(() => {
@@ -52,6 +57,9 @@ const MainPage: React.FC<MainPageProps> = ({ session, onOpenSettings }) => {
   };
 
   const handleObjectSelect = async (obj: SalesforceObject) => {
+    // Set flag to prevent auto-detection from interfering
+    isManualSelectionRef.current = true;
+    
     setSelectedObject(obj);
     setIsLoadingDescription(true);
     setObjectDescription(null);
@@ -76,6 +84,10 @@ const MainPage: React.FC<MainPageProps> = ({ session, onOpenSettings }) => {
       console.error('Error describing object:', err);
     } finally {
       setIsLoadingDescription(false);
+      // Clear the flag after a short delay to allow state to settle
+      setTimeout(() => {
+        isManualSelectionRef.current = false;
+      }, 100);
     }
   };
 
@@ -88,12 +100,54 @@ const MainPage: React.FC<MainPageProps> = ({ session, onOpenSettings }) => {
     setQueryStartTime(Date.now());
     queryCancelledRef.current = false;
 
-    // Build full query with limit if specified
-    const fullQuery = limit > 0 ? `${query.trim()}\nLIMIT ${limit}` : query.trim();
-
     // Extract object name from query for history
     const objectMatch = query.match(/FROM\s+(\w+)/i);
     const objectName = objectMatch ? objectMatch[1] : selectedObject?.name || 'Unknown';
+
+    // Handle SELECT * by expanding to all fields
+    let expandedQuery = query.trim();
+    const selectStarMatch = expandedQuery.match(/^SELECT\s+\*\s+FROM/i);
+    
+    if (selectStarMatch && objectName !== 'Unknown') {
+      try {
+        // Get object description (use cached if available for the same object)
+        let fields: SalesforceField[] = [];
+        
+        if (objectDescription && objectDescription.name.toLowerCase() === objectName.toLowerCase()) {
+          fields = objectDescription.fields;
+        } else {
+          // Fetch the object description
+          const descResult = await window.electronAPI.salesforce.describeObject(objectName);
+          if (descResult.success && descResult.data) {
+            fields = descResult.data.fields;
+          } else {
+            throw new Error(`Could not describe object ${objectName}: ${descResult.error}`);
+          }
+        }
+        
+        // Get all queryable field names (exclude compound fields and user-configured excluded fields)
+        const excludedFieldsLower = new Set(settings.excludedFields.map(f => f.toLowerCase()));
+        const fieldNames = fields
+          .filter(f => !['address', 'location'].includes(f.type.toLowerCase()))
+          .filter(f => !excludedFieldsLower.has(f.name.toLowerCase()))
+          .map(f => f.name)
+          .join(', ');
+        
+        // Replace SELECT * with the field list
+        expandedQuery = expandedQuery.replace(/^SELECT\s+\*\s+FROM/i, `SELECT ${fieldNames} FROM`);
+      } catch (err: any) {
+        setQueryError(`Failed to expand SELECT *: ${err.message}`);
+        setIsExecutingQuery(false);
+        setQueryStartTime(null);
+        return;
+      }
+    }
+
+    // Build full query with limit if specified
+    const fullQuery = limit > 0 ? `${expandedQuery}\nLIMIT ${limit}` : expandedQuery;
+    
+    // For history, store the original query (with SELECT * if used) for readability
+    const originalQueryWithLimit = limit > 0 ? `${query.trim()}\nLIMIT ${limit}` : query.trim();
 
     try {
       const result = await window.electronAPI.salesforce.executeQuery(fullQuery, includeDeleted);
@@ -107,9 +161,9 @@ const MainPage: React.FC<MainPageProps> = ({ session, onOpenSettings }) => {
         setQueryResults(result.data);
         setTotalRecords(result.data.length);
         
-        // Add to history (save the full query with limit)
+        // Add to history (save the original query for readability)
         await window.electronAPI.history.add({
-          query: fullQuery,
+          query: originalQueryWithLimit,
           objectName,
           recordCount: result.data.length,
           success: true,
@@ -121,7 +175,7 @@ const MainPage: React.FC<MainPageProps> = ({ session, onOpenSettings }) => {
         
         // Add failed query to history
         await window.electronAPI.history.add({
-          query: fullQuery,
+          query: originalQueryWithLimit,
           objectName,
           recordCount: 0,
           success: false,
@@ -140,7 +194,7 @@ const MainPage: React.FC<MainPageProps> = ({ session, onOpenSettings }) => {
       
       // Add failed query to history
       await window.electronAPI.history.add({
-        query: fullQuery,
+        query: originalQueryWithLimit,
         objectName,
         recordCount: 0,
         success: false,
@@ -162,6 +216,9 @@ const MainPage: React.FC<MainPageProps> = ({ session, onOpenSettings }) => {
 
   // Handle auto-detection of object from pasted query
   const handleObjectDetected = async (objectName: string) => {
+    // Don't auto-detect if manual selection is in progress
+    if (isManualSelectionRef.current) return;
+    
     // Find the object in the list (case-insensitive)
     const obj = objects.find(o => o.name.toLowerCase() === objectName.toLowerCase());
     if (obj && (!selectedObject || obj.name !== selectedObject.name)) {
@@ -236,8 +293,38 @@ const MainPage: React.FC<MainPageProps> = ({ session, onOpenSettings }) => {
 
   return (
     <div className="h-full flex bg-discord-medium relative">
+      {/* Ambient Background - Theme-dependent */}
+      {settings.theme === 'nature' ? (
+        <AmbientWaves opacity={0.4} />
+      ) : (
+        <AmbientStarfield opacity={0.35} starCount={120} shootingStarInterval={12000} />
+      )}
+      
       {/* Left Sidebar - Object List */}
-      <div className="w-72 flex-shrink-0 bg-discord-dark border-r border-discord-darker">
+      <div className="w-72 flex-shrink-0 bg-discord-dark/90 backdrop-blur-sm border-r border-discord-darker relative z-10">
+        {/* Apex & Settings Toolbar */}
+        <div className="p-2 border-b border-discord-darker flex items-center gap-2">
+          <button
+            onClick={() => setIsApexModalOpen(true)}
+            className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-discord-medium hover:bg-discord-light rounded text-discord-text text-sm transition-colors"
+            title="Anonymous Apex"
+          >
+            <svg className="w-4 h-4 text-discord-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
+            </svg>
+            <span>Apex</span>
+          </button>
+          <button
+            onClick={onOpenSettings}
+            className="p-2 bg-discord-medium hover:bg-discord-light rounded text-discord-text-muted hover:text-discord-text transition-colors"
+            title="Settings"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+            </svg>
+          </button>
+        </div>
         <ObjectList
           objects={objects}
           selectedObject={selectedObject}
@@ -247,7 +334,7 @@ const MainPage: React.FC<MainPageProps> = ({ session, onOpenSettings }) => {
       </div>
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col overflow-hidden">
+      <div className="flex-1 flex flex-col overflow-hidden relative z-10">
         {selectedObject ? (
           <>
             {/* Query Builder */}
@@ -358,7 +445,7 @@ const MainPage: React.FC<MainPageProps> = ({ session, onOpenSettings }) => {
 
       {/* Right Sidebar - Query History */}
       {showHistory && (
-        <div className="w-80 flex-shrink-0 bg-discord-dark border-l border-discord-darker">
+        <div className="w-80 flex-shrink-0 bg-discord-dark/90 backdrop-blur-sm border-l border-discord-darker relative z-10">
           <QueryHistory
             onSelectQuery={handleSelectHistoryQuery}
             refreshTrigger={historyRefreshTrigger}
@@ -369,7 +456,7 @@ const MainPage: React.FC<MainPageProps> = ({ session, onOpenSettings }) => {
       {/* History Toggle Button */}
       <button
         onClick={() => setShowHistory(!showHistory)}
-        className={`absolute right-0 top-1/2 -translate-y-1/2 p-2 rounded-l-lg transition-all z-10 ${
+        className={`absolute right-0 top-1/2 -translate-y-1/2 p-2 rounded-l-lg transition-all z-50 ${
           showHistory 
             ? 'bg-discord-dark text-discord-text-muted hover:text-discord-text mr-80' 
             : 'bg-discord-accent text-white hover:bg-discord-accent-hover'
@@ -381,18 +468,11 @@ const MainPage: React.FC<MainPageProps> = ({ session, onOpenSettings }) => {
         </svg>
       </button>
 
-      {/* Settings Floating Button */}
-      <button
-        onClick={onOpenSettings}
-        className="absolute bottom-4 right-4 p-3 rounded-full bg-discord-dark hover:bg-discord-light border border-discord-lighter shadow-lg transition-all z-10 group"
-        style={{ right: showHistory ? 'calc(320px + 16px)' : '16px' }}
-        title="Settings"
-      >
-        <svg className="w-5 h-5 text-discord-text-muted group-hover:text-discord-text transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-        </svg>
-      </button>
+      {/* Anonymous Apex Modal */}
+      <AnonymousApexModal
+        isOpen={isApexModalOpen}
+        onClose={() => setIsApexModalOpen(false)}
+      />
     </div>
   );
 };

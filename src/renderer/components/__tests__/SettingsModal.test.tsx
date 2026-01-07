@@ -159,8 +159,9 @@ describe('SettingsModal', () => {
   it('should change default query limit', () => {
     render(<SettingsModal {...defaultProps} />);
     
-    const select = screen.getByRole('combobox');
-    fireEvent.change(select, { target: { value: '500' } });
+    const selects = screen.getAllByRole('combobox');
+    const queryLimitSelect = selects[0]; // First select is for query limit
+    fireEvent.change(queryLimitSelect, { target: { value: '500' } });
     fireEvent.click(screen.getByText('Save Settings'));
     
     expect(mockOnSettingsChange).toHaveBeenCalledWith(

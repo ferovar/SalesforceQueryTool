@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 
+export type ThemeType = 'nature' | 'starfield';
+
 export interface AppSettings {
   // Performance
   showPerformanceMonitor: boolean;
@@ -12,11 +14,13 @@ export interface AppSettings {
   // Query defaults
   defaultQueryLimit: number; // 0 means no limit
   autoSaveToHistory: boolean;
+  excludedFields: string[]; // Fields to exclude from SELECT * queries
   
   // UI preferences
   showRelationshipFields: boolean;
   compactResultsView: boolean;
   showRecentObjectsFirst: boolean;
+  theme: ThemeType;
 }
 
 export const defaultSettings: AppSettings = {
@@ -26,9 +30,17 @@ export const defaultSettings: AppSettings = {
   disableMigrationFeature: false,
   defaultQueryLimit: 0, // 0 means no limit
   autoSaveToHistory: true,
+  excludedFields: [
+    'SystemModstamp',
+    'LastReferencedDate',
+    'LastViewedDate',
+    'ConnectionReceivedId',
+    'ConnectionSentId',
+  ],
   showRelationshipFields: true,
   compactResultsView: false,
   showRecentObjectsFirst: true,
+  theme: 'nature', // Default to nature theme
 };
 
 interface SettingsModalProps {
@@ -178,6 +190,12 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                 checked={localSettings.autoSaveToHistory}
                 onChange={(v) => handleChange('autoSaveToHistory', v)}
               />
+              <SettingTextList
+                label="Excluded Fields (SELECT *)"
+                description="Fields to exclude when expanding SELECT * queries. One field per line."
+                value={localSettings.excludedFields}
+                onChange={(v) => handleChange('excludedFields', v)}
+              />
             </div>
           </section>
 
@@ -190,6 +208,16 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
               UI Preferences
             </h4>
             <div className="space-y-3">
+              <SettingSelect
+                label="Background Theme"
+                description="Choose your preferred animated background theme."
+                value={localSettings.theme}
+                options={[
+                  { value: 'nature', label: '� Waves (Ocean)' },
+                  { value: 'starfield', label: '⭐ Starfield (Space)' },
+                ]}
+                onChange={(v) => handleChange('theme', v as 'nature' | 'starfield')}
+              />
               <SettingToggle
                 label="Show Recent Objects First"
                 description="Sort recently used objects to the top of the object list."
@@ -279,27 +307,27 @@ const SettingToggle: React.FC<SettingToggleProps> = ({ label, description, check
 );
 
 // Select component
-interface SettingSelectProps {
+interface SettingSelectProps<T = number> {
   label: string;
   description: string;
-  value: number;
-  options: { value: number; label: string }[];
-  onChange: (value: number) => void;
+  value: T;
+  options: { value: T; label: string }[];
+  onChange: (value: T) => void;
 }
 
-const SettingSelect: React.FC<SettingSelectProps> = ({ label, description, value, options, onChange }) => (
+const SettingSelect = <T extends string | number>({ label, description, value, options, onChange }: SettingSelectProps<T>) => (
   <div className="flex items-start gap-3">
     <div className="flex-1">
       <p className="text-sm text-discord-text">{label}</p>
       <p className="text-xs text-discord-text-muted">{description}</p>
     </div>
     <select
-      value={value}
-      onChange={(e) => onChange(Number(e.target.value))}
+      value={value as string | number}
+      onChange={(e) => onChange(typeof value === 'number' ? Number(e.target.value) as T : e.target.value as T)}
       className="bg-discord-darker border border-discord-lighter rounded px-3 py-1.5 text-sm text-discord-text focus:outline-none focus:border-discord-accent"
     >
       {options.map((opt) => (
-        <option key={opt.value} value={opt.value}>
+        <option key={String(opt.value)} value={opt.value as string | number}>
           {opt.label}
         </option>
       ))}
@@ -328,5 +356,36 @@ const ShortcutRow: React.FC<ShortcutRowProps> = ({ keys, description }) => (
     </div>
   </div>
 );
+
+// Text list component for field exclusions
+interface SettingTextListProps {
+  label: string;
+  description: string;
+  value: string[];
+  onChange: (value: string[]) => void;
+}
+
+const SettingTextList: React.FC<SettingTextListProps> = ({ label, description, value, onChange }) => {
+  const handleTextChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const lines = e.target.value.split('\n').map(s => s.trim()).filter(s => s.length > 0);
+    onChange(lines);
+  };
+
+  return (
+    <div className="space-y-2">
+      <div>
+        <p className="text-sm text-discord-text">{label}</p>
+        <p className="text-xs text-discord-text-muted">{description}</p>
+      </div>
+      <textarea
+        value={value.join('\n')}
+        onChange={handleTextChange}
+        rows={4}
+        className="w-full bg-discord-darker border border-discord-lighter rounded px-3 py-2 text-sm text-discord-text font-mono focus:outline-none focus:border-discord-accent resize-none"
+        placeholder="FieldName1&#10;FieldName2&#10;FieldName3"
+      />
+    </div>
+  );
+};
 
 export default SettingsModal;

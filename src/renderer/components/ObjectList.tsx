@@ -3,7 +3,7 @@ import type { SalesforceObject } from '../types/electron.d';
 import { useSettings } from '../contexts/SettingsContext';
 
 const RECENT_OBJECTS_KEY = 'salesforce-query-tool-recent-objects';
-const MAX_RECENT_OBJECTS = 10;
+const MAX_RECENT_OBJECTS = 5;
 
 interface ObjectListProps {
   objects: SalesforceObject[];
@@ -31,7 +31,13 @@ const ObjectList: React.FC<ObjectListProps> = ({
         const parsed = JSON.parse(saved);
         // Validate it's an array of strings
         if (Array.isArray(parsed) && parsed.every(item => typeof item === 'string')) {
-          setRecentObjects(parsed);
+          // Trim to MAX_RECENT_OBJECTS in case the limit was reduced
+          const trimmed = parsed.slice(0, MAX_RECENT_OBJECTS);
+          setRecentObjects(trimmed);
+          // Save trimmed list back if it was longer
+          if (parsed.length > MAX_RECENT_OBJECTS) {
+            localStorage.setItem(RECENT_OBJECTS_KEY, JSON.stringify(trimmed));
+          }
         } else {
           // Reset if corrupted
           localStorage.removeItem(RECENT_OBJECTS_KEY);

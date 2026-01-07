@@ -2,6 +2,7 @@ import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import ResultsTable from '../ResultsTable';
+import { SettingsProvider } from '../../contexts/SettingsContext';
 
 // Mock the electron API
 const mockUpdateRecord = jest.fn();
@@ -45,7 +46,11 @@ describe('ResultsTable', () => {
 
   describe('rendering', () => {
     it('should render column headers', () => {
-      render(<ResultsTable {...defaultProps} />);
+      render(
+        <SettingsProvider>
+          <ResultsTable {...defaultProps} />
+        </SettingsProvider>
+      );
 
       expect(screen.getByText('Id')).toBeInTheDocument();
       expect(screen.getByText('Name')).toBeInTheDocument();
@@ -53,7 +58,11 @@ describe('ResultsTable', () => {
     });
 
     it('should render row data', () => {
-      render(<ResultsTable {...defaultProps} />);
+      render(
+        <SettingsProvider>
+          <ResultsTable {...defaultProps} />
+        </SettingsProvider>
+      );
 
       expect(screen.getByText('Test Account 1')).toBeInTheDocument();
       expect(screen.getByText('Test Account 2')).toBeInTheDocument();
@@ -62,11 +71,13 @@ describe('ResultsTable', () => {
 
     it('should render empty state when no results', () => {
       render(
-        <ResultsTable
-          {...defaultProps}
-          results={[]}
-          totalRecords={0}
-        />
+        <SettingsProvider>
+          <ResultsTable
+            {...defaultProps}
+            results={[]}
+            totalRecords={0}
+          />
+        </SettingsProvider>
       );
 
       expect(screen.getByText(/no records found/i)).toBeInTheDocument();
@@ -74,11 +85,13 @@ describe('ResultsTable', () => {
 
     it('should show loading state', () => {
       render(
-        <ResultsTable
-          {...defaultProps}
-          isLoading={true}
-          results={null}
-        />
+        <SettingsProvider>
+          <ResultsTable
+            {...defaultProps}
+            isLoading={true}
+            results={null}
+          />
+        </SettingsProvider>
       );
 
       expect(screen.getByText(/executing query/i)).toBeInTheDocument();
@@ -86,11 +99,13 @@ describe('ResultsTable', () => {
 
     it('should show error state', () => {
       render(
-        <ResultsTable
-          {...defaultProps}
-          error="Query failed"
-          results={null}
-        />
+        <SettingsProvider>
+          <ResultsTable
+            {...defaultProps}
+            error="Query failed"
+            results={null}
+          />
+        </SettingsProvider>
       );
 
       expect(screen.getByText(/query failed/i)).toBeInTheDocument();
@@ -100,7 +115,7 @@ describe('ResultsTable', () => {
   describe('sorting', () => {
     it('should sort by column when header is clicked', async () => {
       const user = userEvent.setup();
-      render(<ResultsTable {...defaultProps} />);
+      render(<SettingsProvider><ResultsTable {...defaultProps} /></SettingsProvider>);
 
       // Click on Name header to sort
       const nameHeader = screen.getByText('Name');
@@ -115,7 +130,7 @@ describe('ResultsTable', () => {
   describe('inline editing', () => {
     it('should start editing when double-clicking an editable cell', async () => {
       const user = userEvent.setup();
-      render(<ResultsTable {...defaultProps} />);
+      render(<SettingsProvider><ResultsTable {...defaultProps} /></SettingsProvider>);
 
       // Find the Name cell for the first row and double-click
       const nameCell = screen.getByText('Test Account 1');
@@ -129,7 +144,7 @@ describe('ResultsTable', () => {
 
     it('should NOT start editing for non-updateable fields', async () => {
       const user = userEvent.setup();
-      render(<ResultsTable {...defaultProps} />);
+      render(<SettingsProvider><ResultsTable {...defaultProps} /></SettingsProvider>);
 
       // Double-click on Id cell (not updateable)
       const idCell = screen.getByText('001abc123');
@@ -141,7 +156,7 @@ describe('ResultsTable', () => {
 
     it('should cancel editing when Escape is pressed', async () => {
       const user = userEvent.setup();
-      render(<ResultsTable {...defaultProps} />);
+      render(<SettingsProvider><ResultsTable {...defaultProps} /></SettingsProvider>);
 
       // Start editing
       const nameCell = screen.getByText('Test Account 1');
@@ -165,10 +180,12 @@ describe('ResultsTable', () => {
 
       const onRecordUpdate = jest.fn();
       render(
-        <ResultsTable
-          {...defaultProps}
-          onRecordUpdate={onRecordUpdate}
-        />
+        <SettingsProvider>
+          <ResultsTable
+            {...defaultProps}
+            onRecordUpdate={onRecordUpdate}
+          />
+        </SettingsProvider>
       );
 
       // Start editing
@@ -198,10 +215,12 @@ describe('ResultsTable', () => {
 
       const onRecordUpdate = jest.fn();
       render(
-        <ResultsTable
-          {...defaultProps}
-          onRecordUpdate={onRecordUpdate}
-        />
+        <SettingsProvider>
+          <ResultsTable
+            {...defaultProps}
+            onRecordUpdate={onRecordUpdate}
+          />
+        </SettingsProvider>
       );
 
       // Start editing and save
@@ -224,7 +243,7 @@ describe('ResultsTable', () => {
 
     it('should NOT save if value has not changed', async () => {
       const user = userEvent.setup();
-      render(<ResultsTable {...defaultProps} />);
+      render(<SettingsProvider><ResultsTable {...defaultProps} /></SettingsProvider>);
 
       // Start editing
       const nameCell = screen.getByText('Test Account 1');
@@ -241,7 +260,7 @@ describe('ResultsTable', () => {
       const user = userEvent.setup();
       mockUpdateRecord.mockRejectedValue(new Error('FIELD_CUSTOM_VALIDATION_EXCEPTION'));
 
-      render(<ResultsTable {...defaultProps} />);
+      render(<SettingsProvider><ResultsTable {...defaultProps} /></SettingsProvider>);
 
       // Start editing
       const nameCell = screen.getByText('Test Account 1');
@@ -266,7 +285,7 @@ describe('ResultsTable', () => {
 
     it('should allow text selection in edit input', async () => {
       const user = userEvent.setup();
-      render(<ResultsTable {...defaultProps} />);
+      render(<SettingsProvider><ResultsTable {...defaultProps} /></SettingsProvider>);
 
       // Start editing
       const nameCell = screen.getByText('Test Account 1');
@@ -282,10 +301,12 @@ describe('ResultsTable', () => {
     it('should not edit when objectDescription is null', async () => {
       const user = userEvent.setup();
       render(
-        <ResultsTable
-          {...defaultProps}
-          objectDescription={null}
-        />
+        <SettingsProvider>
+          <ResultsTable
+            {...defaultProps}
+            objectDescription={null}
+          />
+        </SettingsProvider>
       );
 
       // Double-click on any cell
@@ -307,7 +328,7 @@ describe('ResultsTable', () => {
         resolveUpdate = resolve;
       }));
 
-      render(<ResultsTable {...defaultProps} />);
+      render(<SettingsProvider><ResultsTable {...defaultProps} /></SettingsProvider>);
 
       // Start editing and save
       const nameCell = screen.getByText('Test Account 1');
@@ -318,14 +339,16 @@ describe('ResultsTable', () => {
       await user.type(input, 'Saving Name');
       await user.keyboard('{Enter}');
 
-      // Should show saving indicator (yellow/accent background with animation)
+      // Should show saving indicator (yellow/accent background with spinner)
       await waitFor(() => {
         const cells = document.querySelectorAll('td');
         const savingCell = Array.from(cells).find(cell => 
-          cell.classList.contains('bg-discord-accent/20') && 
-          cell.classList.contains('animate-pulse')
+          cell.classList.contains('bg-discord-accent/20')
         );
-        expect(savingCell).toBeDefined();
+        expect(savingCell).toBeTruthy();
+        // Should also have a spinner
+        const spinner = savingCell?.querySelector('.animate-spin');
+        expect(spinner).toBeTruthy();
       });
 
       // Resolve the update
@@ -337,7 +360,7 @@ describe('ResultsTable', () => {
         const successCell = Array.from(cells).find(cell => 
           cell.classList.contains('bg-green-500/20')
         );
-        expect(successCell).toBeDefined();
+        expect(successCell).toBeTruthy();
       });
     });
   });
@@ -347,7 +370,7 @@ describe('ResultsTable', () => {
       const user = userEvent.setup();
       mockUpdateRecord.mockResolvedValue({ success: true, id: '001abc123' });
 
-      render(<ResultsTable {...defaultProps} />);
+      render(<SettingsProvider><ResultsTable {...defaultProps} /></SettingsProvider>);
 
       // Edit the Name field
       const nameCell = screen.getByText('Test Account 1');
@@ -375,10 +398,12 @@ describe('ResultsTable', () => {
       const onExportCsv = jest.fn();
       
       render(
-        <ResultsTable
-          {...defaultProps}
-          onExportCsv={onExportCsv}
-        />
+        <SettingsProvider>
+          <ResultsTable
+            {...defaultProps}
+            onExportCsv={onExportCsv}
+          />
+        </SettingsProvider>
       );
 
       const exportButton = screen.getByRole('button', { name: /export|csv/i });
@@ -388,3 +413,4 @@ describe('ResultsTable', () => {
     });
   });
 });
+
