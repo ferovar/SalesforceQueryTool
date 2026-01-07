@@ -6,15 +6,26 @@ interface TitleBarProps {
   instanceUrl?: string;
   username?: string;
   onOpenSettings: () => void;
+  themeColor?: string;
 }
 
-const TitleBar: React.FC<TitleBarProps> = ({ isLoggedIn, onLogout, instanceUrl, username, onOpenSettings }) => {
+const TitleBar: React.FC<TitleBarProps> = ({ isLoggedIn, onLogout, instanceUrl, username, onOpenSettings, themeColor }) => {
   const handleMinimize = () => window.electronAPI.minimizeWindow();
   const handleMaximize = () => window.electronAPI.maximizeWindow();
   const handleClose = () => window.electronAPI.closeWindow();
 
+  // Use the theme color if logged in and a color is provided, otherwise use default
+  const backgroundColor = isLoggedIn && themeColor ? themeColor : '#1e1f22';
+  const borderColor = isLoggedIn && themeColor ? `${themeColor}80` : '#313338';
+
   return (
-    <div className="h-8 bg-discord-darker flex items-center justify-between select-none drag-region border-b border-discord-dark">
+    <div 
+      className="h-8 flex items-center justify-between select-none drag-region border-b transition-colors duration-300"
+      style={{ 
+        backgroundColor, 
+        borderColor 
+      }}
+    >
       {/* Left side - App info */}
       <div className="flex items-center h-full px-3 no-drag">
         <div className="flex items-center gap-2">

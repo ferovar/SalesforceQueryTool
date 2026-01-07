@@ -11,6 +11,7 @@ export interface UserSession {
   organizationId: string;
   instanceUrl: string;
   username?: string;
+  color?: string;
 }
 
 function AppContent() {
@@ -91,6 +92,7 @@ function AppContent() {
         instanceUrl={session?.instanceUrl}
         username={session?.username}
         onOpenSettings={() => setIsSettingsOpen(true)}
+        themeColor={session?.color}
       />
       <main className="flex-1 overflow-hidden">
         {isLoggedIn && session ? (

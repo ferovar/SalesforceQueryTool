@@ -7,6 +7,7 @@ interface StoredCredentials {
   password: string;
   securityToken: string;
   isSandbox: boolean;
+  color?: string;
 }
 
 interface SavedLogin {
@@ -17,6 +18,7 @@ interface SavedLogin {
   isSandbox: boolean;
   lastUsed: string;
   loginType: 'credentials';
+  color?: string;
 }
 
 interface SavedOAuthLogin {
@@ -30,6 +32,7 @@ interface SavedOAuthLogin {
   clientId: string;
   lastUsed: string;
   loginType: 'oauth';
+  color?: string;
 }
 
 interface StoreSchema {

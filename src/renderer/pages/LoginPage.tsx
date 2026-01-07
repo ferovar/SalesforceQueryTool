@@ -17,6 +17,7 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess, onOpenSettings })
   const [loginMethod, setLoginMethod] = useState<LoginMethod>('credentials');
   const [environment, setEnvironment] = useState<Environment>('production');
   const [label, setLabel] = useState('');
+  const [color, setColor] = useState('#5865f2');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [securityToken, setSecurityToken] = useState('');
@@ -29,6 +30,7 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess, onOpenSettings })
   const [showSavedOAuthLogins, setShowSavedOAuthLogins] = useState(false);
   const [isUsingSavedLogin, setIsUsingSavedLogin] = useState(false);
   const [oauthLabel, setOauthLabel] = useState('');
+  const [oauthColor, setOauthColor] = useState('#5865f2');
   const [saveOAuthConnection, setSaveOAuthConnection] = useState(true);
   const [oauthClientId, setOauthClientId] = useState('');
   const [showOAuthSetup, setShowOAuthSetup] = useState(false);
@@ -131,6 +133,7 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess, onOpenSettings })
         securityToken,
         isSandbox: environment === 'sandbox',
         saveCredentials,
+        color,
       });
 
       if (result.success) {
@@ -160,6 +163,7 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess, onOpenSettings })
         saveConnection: saveOAuthConnection,
         label: oauthLabel,
         clientId: oauthClientId.trim(),
+        color: oauthColor,
       });
 
       if (result.success) {
@@ -403,11 +407,20 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess, onOpenSettings })
                             onClick={() => handleSelectSavedLogin(login)}
                             className="flex items-center justify-between px-3 py-2 hover:bg-discord-light cursor-pointer group"
                           >
-                            <div>
-                              <p className="text-sm text-discord-text font-medium">{login.label}</p>
-                              <p className="text-xs text-discord-text-muted">
-                                {login.username} • {login.isSandbox ? 'Sandbox' : 'Production'}
-                              </p>
+                            <div className="flex items-center gap-3">
+                              {login.color && (
+                                <div 
+                                  className="w-3 h-3 rounded-full border border-discord-lighter flex-shrink-0" 
+                                  style={{ backgroundColor: login.color }}
+                                  title="Connection theme color"
+                                />
+                              )}
+                              <div>
+                                <p className="text-sm text-discord-text font-medium">{login.label}</p>
+                                <p className="text-xs text-discord-text-muted">
+                                  {login.username} • {login.isSandbox ? 'Sandbox' : 'Production'}
+                                </p>
+                              </div>
                             </div>
                             <button
                               onClick={(e) => handleDeleteSavedLogin(login.username, e)}
@@ -491,14 +504,30 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess, onOpenSettings })
                     </label>
                     
                     {saveCredentials && (
-                      <input
-                        id="label"
-                        type="text"
-                        value={label}
-                        onChange={(e) => setLabel(e.target.value)}
-                        placeholder="Label (e.g., Production - Main Org)"
-                        className="input"
-                      />
+                      <>
+                        <input
+                          id="label"
+                          type="text"
+                          value={label}
+                          onChange={(e) => setLabel(e.target.value)}
+                          placeholder="Label (e.g., Production - Main Org)"
+                          className="input"
+                        />
+                        <div className="flex items-center gap-3">
+                          <label htmlFor="color-picker" className="text-sm text-discord-text-muted">
+                            Theme Color:
+                          </label>
+                          <input
+                            id="color-picker"
+                            type="color"
+                            value={color}
+                            onChange={(e) => setColor(e.target.value)}
+                            className="h-8 w-16 rounded border border-discord-lighter bg-discord-dark cursor-pointer"
+                            title="Choose a color for this connection"
+                          />
+                          <span className="text-xs text-discord-text-muted">Will appear in title bar when connected</span>
+                        </div>
+                      </>
                     )}
                   </div>
                 )}
@@ -545,11 +574,20 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess, onOpenSettings })
                             onClick={() => handleSelectSavedOAuthLogin(login)}
                             className="flex items-center justify-between px-3 py-2 hover:bg-discord-light cursor-pointer group"
                           >
-                            <div>
-                              <p className="text-sm text-discord-text font-medium">{login.label}</p>
-                              <p className="text-xs text-discord-text-muted">
-                                {login.username} • {login.isSandbox ? 'Sandbox' : 'Production'}
-                              </p>
+                            <div className="flex items-center gap-3">
+                              {login.color && (
+                                <div 
+                                  className="w-3 h-3 rounded-full border border-discord-lighter flex-shrink-0" 
+                                  style={{ backgroundColor: login.color }}
+                                  title="Connection theme color"
+                                />
+                              )}
+                              <div>
+                                <p className="text-sm text-discord-text font-medium">{login.label}</p>
+                                <p className="text-xs text-discord-text-muted">
+                                  {login.username} • {login.isSandbox ? 'Sandbox' : 'Production'}
+                                </p>
+                              </div>
                             </div>
                             <button
                               onClick={(e) => handleDeleteSavedOAuthLogin(login.id, e)}
@@ -646,13 +684,29 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess, onOpenSettings })
                   </label>
                   
                   {saveOAuthConnection && (
-                    <input
-                      type="text"
-                      value={oauthLabel}
-                      onChange={(e) => setOauthLabel(e.target.value)}
-                      placeholder="Label (e.g., My Dev Sandbox)"
-                      className="input"
-                    />
+                    <>
+                      <input
+                        type="text"
+                        value={oauthLabel}
+                        onChange={(e) => setOauthLabel(e.target.value)}
+                        placeholder="Label (e.g., My Dev Sandbox)"
+                        className="input"
+                      />
+                      <div className="flex items-center gap-3">
+                        <label htmlFor="oauth-color-picker" className="text-sm text-discord-text-muted">
+                          Theme Color:
+                        </label>
+                        <input
+                          id="oauth-color-picker"
+                          type="color"
+                          value={oauthColor}
+                          onChange={(e) => setOauthColor(e.target.value)}
+                          className="h-8 w-16 rounded border border-discord-lighter bg-discord-dark cursor-pointer"
+                          title="Choose a color for this connection"
+                        />
+                        <span className="text-xs text-discord-text-muted">Will appear in title bar when connected</span>
+                      </div>
+                    </>
                   )}
                 </div>
 
