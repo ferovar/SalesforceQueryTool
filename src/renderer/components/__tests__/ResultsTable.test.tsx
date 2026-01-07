@@ -71,11 +71,13 @@ describe('ResultsTable', () => {
 
     it('should render empty state when no results', () => {
       render(
-        <ResultsTable
-          {...defaultProps}
-          results={[]}
-          totalRecords={0}
-        />
+        <SettingsProvider>
+          <ResultsTable
+            {...defaultProps}
+            results={[]}
+            totalRecords={0}
+          />
+        </SettingsProvider>
       );
 
       expect(screen.getByText(/no records found/i)).toBeInTheDocument();
@@ -83,11 +85,13 @@ describe('ResultsTable', () => {
 
     it('should show loading state', () => {
       render(
-        <ResultsTable
-          {...defaultProps}
-          isLoading={true}
-          results={null}
-        />
+        <SettingsProvider>
+          <ResultsTable
+            {...defaultProps}
+            isLoading={true}
+            results={null}
+          />
+        </SettingsProvider>
       );
 
       expect(screen.getByText(/executing query/i)).toBeInTheDocument();
@@ -95,11 +99,13 @@ describe('ResultsTable', () => {
 
     it('should show error state', () => {
       render(
-        <ResultsTable
-          {...defaultProps}
-          error="Query failed"
-          results={null}
-        />
+        <SettingsProvider>
+          <ResultsTable
+            {...defaultProps}
+            error="Query failed"
+            results={null}
+          />
+        </SettingsProvider>
       );
 
       expect(screen.getByText(/query failed/i)).toBeInTheDocument();
@@ -174,10 +180,12 @@ describe('ResultsTable', () => {
 
       const onRecordUpdate = jest.fn();
       render(
-        <ResultsTable
-          {...defaultProps}
-          onRecordUpdate={onRecordUpdate}
-        />
+        <SettingsProvider>
+          <ResultsTable
+            {...defaultProps}
+            onRecordUpdate={onRecordUpdate}
+          />
+        </SettingsProvider>
       );
 
       // Start editing
@@ -207,10 +215,12 @@ describe('ResultsTable', () => {
 
       const onRecordUpdate = jest.fn();
       render(
-        <ResultsTable
-          {...defaultProps}
-          onRecordUpdate={onRecordUpdate}
-        />
+        <SettingsProvider>
+          <ResultsTable
+            {...defaultProps}
+            onRecordUpdate={onRecordUpdate}
+          />
+        </SettingsProvider>
       );
 
       // Start editing and save
@@ -291,10 +301,12 @@ describe('ResultsTable', () => {
     it('should not edit when objectDescription is null', async () => {
       const user = userEvent.setup();
       render(
-        <ResultsTable
-          {...defaultProps}
-          objectDescription={null}
-        />
+        <SettingsProvider>
+          <ResultsTable
+            {...defaultProps}
+            objectDescription={null}
+          />
+        </SettingsProvider>
       );
 
       // Double-click on any cell
@@ -327,14 +339,16 @@ describe('ResultsTable', () => {
       await user.type(input, 'Saving Name');
       await user.keyboard('{Enter}');
 
-      // Should show saving indicator (yellow/accent background with animation)
+      // Should show saving indicator (yellow/accent background with spinner)
       await waitFor(() => {
         const cells = document.querySelectorAll('td');
         const savingCell = Array.from(cells).find(cell => 
-          cell.classList.contains('bg-discord-accent/20') && 
-          cell.classList.contains('animate-pulse')
+          cell.classList.contains('bg-discord-accent/20')
         );
         expect(savingCell).toBeTruthy();
+        // Should also have a spinner
+        const spinner = savingCell?.querySelector('.animate-spin');
+        expect(spinner).toBeTruthy();
       });
 
       // Resolve the update
