@@ -5,6 +5,7 @@ import ObjectList from '../components/ObjectList';
 import QueryBuilder from '../components/QueryBuilder';
 import ResultsTable from '../components/ResultsTable';
 import QueryHistory from '../components/QueryHistory';
+import AmbientStarfield from '../components/AmbientStarfield';
 import { useSettings } from '../contexts/SettingsContext';
 
 interface MainPageProps {
@@ -289,8 +290,11 @@ const MainPage: React.FC<MainPageProps> = ({ session, onOpenSettings }) => {
 
   return (
     <div className="h-full flex bg-discord-medium relative">
+      {/* Ambient Starfield Background */}
+      <AmbientStarfield opacity={0.35} starCount={120} shootingStarInterval={12000} />
+      
       {/* Left Sidebar - Object List */}
-      <div className="w-72 flex-shrink-0 bg-discord-dark border-r border-discord-darker">
+      <div className="w-72 flex-shrink-0 bg-discord-dark/90 backdrop-blur-sm border-r border-discord-darker relative z-10">
         <ObjectList
           objects={objects}
           selectedObject={selectedObject}
@@ -300,7 +304,7 @@ const MainPage: React.FC<MainPageProps> = ({ session, onOpenSettings }) => {
       </div>
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col overflow-hidden">
+      <div className="flex-1 flex flex-col overflow-hidden relative z-10">
         {selectedObject ? (
           <>
             {/* Query Builder */}
@@ -411,7 +415,7 @@ const MainPage: React.FC<MainPageProps> = ({ session, onOpenSettings }) => {
 
       {/* Right Sidebar - Query History */}
       {showHistory && (
-        <div className="w-80 flex-shrink-0 bg-discord-dark border-l border-discord-darker">
+        <div className="w-80 flex-shrink-0 bg-discord-dark/90 backdrop-blur-sm border-l border-discord-darker relative z-10">
           <QueryHistory
             onSelectQuery={handleSelectHistoryQuery}
             refreshTrigger={historyRefreshTrigger}
