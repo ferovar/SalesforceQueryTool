@@ -130,7 +130,7 @@ describe('AnonymousApexModal', () => {
       render(<AnonymousApexModal {...defaultProps} />);
 
       // Find and type in the textarea
-      const textarea = screen.getByPlaceholderText(/Enter your Apex code here/i);
+      const textarea = screen.getByRole('textbox', { hidden: true });
       await user.clear(textarea);
       await user.type(textarea, 'System.debug("test");');
 
@@ -168,7 +168,7 @@ describe('AnonymousApexModal', () => {
 
       render(<AnonymousApexModal {...defaultProps} />);
 
-      const textarea = screen.getByPlaceholderText(/Enter your Apex code here/i);
+      const textarea = screen.getByRole('textbox', { hidden: true });
       await user.type(textarea, 'System.debug("test");');
 
       const executeButton = screen.getByText('Execute');
@@ -197,7 +197,7 @@ describe('AnonymousApexModal', () => {
 
       render(<AnonymousApexModal {...defaultProps} />);
 
-      const textarea = screen.getByPlaceholderText(/Enter your Apex code here/i);
+      const textarea = screen.getByRole('textbox', { hidden: true });
       await user.type(textarea, 'invalid code');
 
       const executeButton = screen.getByText('Execute');
@@ -233,7 +233,7 @@ describe('AnonymousApexModal', () => {
       const user = userEvent.setup();
       render(<AnonymousApexModal {...defaultProps} />);
 
-      const textarea = screen.getByPlaceholderText(/Enter your Apex code here/i);
+      const textarea = screen.getByRole('textbox', { hidden: true });
       await user.type(textarea, 'System.debug("test");');
 
       const saveButton = screen.getByText('Save');
@@ -259,7 +259,7 @@ describe('AnonymousApexModal', () => {
 
       render(<AnonymousApexModal {...defaultProps} />);
 
-      const textarea = screen.getByPlaceholderText(/Enter your Apex code here/i);
+      const textarea = screen.getByRole('textbox', { hidden: true });
       await user.type(textarea, 'System.debug("test");');
 
       const saveButton = screen.getByText('Save');
