@@ -44,6 +44,52 @@ contextBridge.exposeInMainWorld('electronAPI', {
       ipcRenderer.invoke('salesforce:exportToCsv', data, filename),
   },
 
+  // Anonymous Apex operations
+  apex: {
+    execute: (script: string, scriptId?: string, scriptName?: string) =>
+      ipcRenderer.invoke('apex:execute', script, scriptId, scriptName),
+    
+    getDebugLogs: (limit?: number) => ipcRenderer.invoke('apex:getDebugLogs', limit),
+    
+    getDebugLogBody: (logId: string) => ipcRenderer.invoke('apex:getDebugLogBody', logId),
+  },
+
+  // Saved Apex scripts
+  apexScripts: {
+    save: (name: string, script: string, existingId?: string) =>
+      ipcRenderer.invoke('apexScripts:save', name, script, existingId),
+    
+    getAll: () => ipcRenderer.invoke('apexScripts:getAll'),
+    
+    get: (id: string) => ipcRenderer.invoke('apexScripts:get', id),
+    
+    delete: (id: string) => ipcRenderer.invoke('apexScripts:delete', id),
+  },
+
+  // Apex execution history
+  apexHistory: {
+    getAll: () => ipcRenderer.invoke('apexHistory:getAll'),
+    get: (id: string) => ipcRenderer.invoke('apexHistory:get', id),
+    clear: () => ipcRenderer.invoke('apexHistory:clear'),
+    delete: (id: string) => ipcRenderer.invoke('apexHistory:delete', id),
+  },
+
+  // User debugging
+  debug: {
+    searchUsers: (searchTerm: string) => ipcRenderer.invoke('debug:searchUsers', searchTerm),
+    
+    createTraceFlag: (userId: string, durationMinutes: number) =>
+      ipcRenderer.invoke('debug:createTraceFlag', userId, durationMinutes),
+    
+    deleteTraceFlag: (traceFlagId: string) =>
+      ipcRenderer.invoke('debug:deleteTraceFlag', traceFlagId),
+    
+    getActiveTraceFlags: () => ipcRenderer.invoke('debug:getActiveTraceFlags'),
+    
+    getLogsForUser: (userId: string, sinceTime?: string, limit?: number) =>
+      ipcRenderer.invoke('debug:getLogsForUser', userId, sinceTime, limit),
+  },
+
   // Credentials management
   credentials: {
     get: () => ipcRenderer.invoke('credentials:get'),

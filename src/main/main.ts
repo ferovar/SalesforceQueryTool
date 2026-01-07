@@ -4,6 +4,7 @@ import { SalesforceService } from './services/salesforce';
 import { CredentialsStore } from './services/credentials';
 import { QueriesStore } from './services/queries';
 import { QueryHistoryStore } from './services/queryHistory';
+import { ApexScriptsStore } from './services/apexScripts';
 import { OrgConnectionManager } from './services/orgConnectionManager';
 import { DataMigrationService, RelationshipConfig, DEFAULT_EXCLUDED_FIELDS, DEFAULT_EXCLUDED_OBJECTS } from './services/dataMigration';
 
@@ -13,11 +14,12 @@ const salesforceService = new SalesforceService();
 const credentialsStore = new CredentialsStore();
 const queriesStore = new QueriesStore();
 const queryHistoryStore = new QueryHistoryStore();
+const apexScriptsStore = new ApexScriptsStore();
 const orgConnectionManager = new OrgConnectionManager();
 let dataMigrationService: DataMigrationService | null = null;
 
-// Check if we should use dev server - only if explicitly in development AND not in production mode
-const isDev = process.env.NODE_ENV !== 'production' && !app.isPackaged && process.env.VITE_DEV_SERVER_URL !== undefined;
+// Check if we should use dev server - check if app is packaged or if we're in a development context
+const isDev = !app.isPackaged;
 
 console.log('Starting Salesforce Query Tool...');
 console.log('isDev:', isDev);
@@ -800,6 +802,140 @@ ipcMain.handle('migration:getExternalIdFields', async (_event, objectName: strin
       }));
     
     return { success: true, data: externalIdFields };
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+});
+
+// IPC Handlers for Anonymous Apex
+ipcMain.handle('apex:execute', async (_event, script: string, scriptId?: string, scriptName?: string) => {
+  try {
+    const result = await salesforceService.executeAnonymousApex(script);
+    
+    // Save to execution history
+    apexScriptsStore.addExecutionLog({
+      scriptId,
+      scriptName,
+      script,
+      success: result.success,
+      compileProblem: result.compileProblem,
+      exceptionMessage: result.exceptionMessage,
+      exceptionStackTrace: result.exceptionStackTrace,
+      debugLog: result.debugLog,
+    });
+
+    // Update script's last run if scriptId provided
+    if (scriptId) {
+      apexScriptsStore.updateLastRun(scriptId, result.success);
+    }
+    
+    return { success: true, data: result };
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('apex:getDebugLogs', async (_event, limit?: number) => {
+  try {
+    const logs = await salesforceService.getDebugLogs(limit);
+    return { success: true, data: logs };
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('apex:getDebugLogBody', async (_event, logId: string) => {
+  try {
+    const body = await salesforceService.getDebugLogBody(logId);
+    return { success: true, data: body };
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+});
+
+// IPC Handlers for saved Apex scripts
+ipcMain.handle('apexScripts:save', (_event, name: string, script: string, existingId?: string) => {
+  try {
+    const savedScript = apexScriptsStore.saveScript(name, script, existingId);
+    return { success: true, data: savedScript };
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('apexScripts:getAll', () => {
+  return apexScriptsStore.getScripts();
+});
+
+ipcMain.handle('apexScripts:get', (_event, id: string) => {
+  return apexScriptsStore.getScript(id);
+});
+
+ipcMain.handle('apexScripts:delete', (_event, id: string) => {
+  apexScriptsStore.deleteScript(id);
+  return { success: true };
+});
+
+// IPC Handlers for Apex execution history
+ipcMain.handle('apexHistory:getAll', () => {
+  return apexScriptsStore.getExecutionHistory();
+});
+
+ipcMain.handle('apexHistory:get', (_event, id: string) => {
+  return apexScriptsStore.getExecutionLog(id);
+});
+
+ipcMain.handle('apexHistory:clear', () => {
+  apexScriptsStore.clearExecutionHistory();
+  return { success: true };
+});
+
+ipcMain.handle('apexHistory:delete', (_event, id: string) => {
+  apexScriptsStore.deleteExecutionLog(id);
+  return { success: true };
+});
+
+// IPC Handlers for User Debugging
+ipcMain.handle('debug:searchUsers', async (_event, searchTerm: string) => {
+  try {
+    const users = await salesforceService.searchUsers(searchTerm);
+    return { success: true, data: users };
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('debug:createTraceFlag', async (_event, userId: string, durationMinutes: number) => {
+  try {
+    const result = await salesforceService.createUserTraceFlag(userId, durationMinutes);
+    return { success: true, data: result };
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('debug:deleteTraceFlag', async (_event, traceFlagId: string) => {
+  try {
+    await salesforceService.deleteTraceFlag(traceFlagId);
+    return { success: true };
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('debug:getActiveTraceFlags', async () => {
+  try {
+    const traceFlags = await salesforceService.getActiveTraceFlags();
+    return { success: true, data: traceFlags };
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('debug:getLogsForUser', async (_event, userId: string, sinceTime?: string, limit?: number) => {
+  try {
+    const logs = await salesforceService.getDebugLogsForUser(userId, sinceTime, limit);
+    return { success: true, data: logs };
   } catch (error: any) {
     return { success: false, error: error.message };
   }

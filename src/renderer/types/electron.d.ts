@@ -32,6 +32,53 @@ export interface ElectronAPI {
     
     exportToCsv: (data: any[], filename: string) => Promise<{ success: boolean; data?: string; error?: string }>;
   };
+
+  // Anonymous Apex operations
+  apex: {
+    execute: (script: string, scriptId?: string, scriptName?: string) => 
+      Promise<{ success: boolean; data?: ApexExecutionResult; error?: string }>;
+    
+    getDebugLogs: (limit?: number) => 
+      Promise<{ success: boolean; data?: DebugLogEntry[]; error?: string }>;
+    
+    getDebugLogBody: (logId: string) => 
+      Promise<{ success: boolean; data?: string; error?: string }>;
+  };
+
+  // Saved Apex scripts
+  apexScripts: {
+    save: (name: string, script: string, existingId?: string) => 
+      Promise<{ success: boolean; data?: SavedApexScript; error?: string }>;
+    getAll: () => Promise<SavedApexScript[]>;
+    get: (id: string) => Promise<SavedApexScript | undefined>;
+    delete: (id: string) => Promise<{ success: boolean }>;
+  };
+
+  // Apex execution history
+  apexHistory: {
+    getAll: () => Promise<ApexExecutionLog[]>;
+    get: (id: string) => Promise<ApexExecutionLog | undefined>;
+    clear: () => Promise<{ success: boolean }>;
+    delete: (id: string) => Promise<{ success: boolean }>;
+  };
+
+  // User debugging
+  debug: {
+    searchUsers: (searchTerm: string) => 
+      Promise<{ success: boolean; data?: DebugUser[]; error?: string }>;
+    
+    createTraceFlag: (userId: string, durationMinutes: number) =>
+      Promise<{ success: boolean; data?: { traceFlagId: string; expirationDate: string }; error?: string }>;
+    
+    deleteTraceFlag: (traceFlagId: string) =>
+      Promise<{ success: boolean; error?: string }>;
+    
+    getActiveTraceFlags: () =>
+      Promise<{ success: boolean; data?: ActiveTraceFlag[]; error?: string }>;
+    
+    getLogsForUser: (userId: string, sinceTime?: string, limit?: number) =>
+      Promise<{ success: boolean; data?: UserDebugLog[]; error?: string }>;
+  };
   
   credentials: {
     get: () => Promise<StoredCredentials | null>;
@@ -178,6 +225,50 @@ export interface QueryHistoryEntry {
   error?: string;
 }
 
+// Apex types
+export interface SavedApexScript {
+  id: string;
+  name: string;
+  script: string;
+  createdAt: string;
+  updatedAt: string;
+  lastRunAt?: string;
+  lastRunSuccess?: boolean;
+}
+
+export interface ApexExecutionResult {
+  success: boolean;
+  compiled: boolean;
+  compileProblem?: string;
+  exceptionMessage?: string;
+  exceptionStackTrace?: string;
+  line?: number;
+  column?: number;
+  debugLog?: string;
+}
+
+export interface ApexExecutionLog {
+  id: string;
+  scriptId?: string;
+  scriptName?: string;
+  script: string;
+  executedAt: string;
+  success: boolean;
+  compileProblem?: string;
+  exceptionMessage?: string;
+  exceptionStackTrace?: string;
+  debugLog?: string;
+}
+
+export interface DebugLogEntry {
+  id: string;
+  logLength: number;
+  operation: string;
+  status: string;
+  durationMs: number;
+  startTime: string;
+}
+
 // Migration types
 export interface TargetOrg {
   id: string;
@@ -242,6 +333,35 @@ export interface ExternalIdField {
   type: string;
   isExternalId: boolean;
   isUnique: boolean;
+}
+
+// User Debugging Types
+export interface DebugUser {
+  id: string;
+  name: string;
+  username: string;
+  email: string;
+  isActive: boolean;
+  profileName: string;
+}
+
+export interface ActiveTraceFlag {
+  id: string;
+  tracedEntityId: string;
+  tracedEntityName: string;
+  logType: string;
+  expirationDate: string;
+  debugLevelName: string;
+}
+
+export interface UserDebugLog {
+  id: string;
+  logLength: number;
+  operation: string;
+  status: string;
+  durationMs: number;
+  startTime: string;
+  request: string;
 }
 
 declare global {
