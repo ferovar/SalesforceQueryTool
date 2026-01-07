@@ -504,7 +504,18 @@ const QueryBuilder: React.FC<QueryBuilderProps> = ({
     // Match SELECT ... FROM pattern (case insensitive)
     const selectMatch = queryStr.match(/SELECT\s+([\s\S]*?)\s+FROM\s+/i);
     if (selectMatch) {
-      const fieldsStr = selectMatch[1];
+      const fieldsStr = selectMatch[1].trim();
+      
+      // Check for SELECT * - if found, return all available fields
+      if (fieldsStr === '*') {
+        if (objectDescription?.fields) {
+          objectDescription.fields.forEach(field => {
+            fields.add(field.name);
+          });
+        }
+        return fields;
+      }
+      
       // Split by comma, trim whitespace, handle newlines
       const fieldNames = fieldsStr.split(',').map(f => f.trim()).filter(f => f);
       fieldNames.forEach(field => {
