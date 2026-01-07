@@ -1,14 +1,109 @@
 import React, { useEffect, useRef } from 'react';
 
+const WavesBackground: React.FC = () => {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+
+  useEffect(() => {
+    console.log('WavesBackground mounted and useEffect running');
+    const canvas = canvasRef.current;
+    if (!canvas) {
+      console.log('WavesBackground: canvas is null');
+      return;
+    }
+
+    const ctx = canvas.getContext('2d');
+    if (!ctx) {
+      console.log('WavesBackground: context is null');
+      return;
+    }
+    console.log('WavesBackground: canvas and context ready, starting animation');
+
+    let animationId: number;
+    let time = 0;
+
+    const resizeCanvas = () => {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+    };
+
+    resizeCanvas();
+    window.addEventListener('resize', resizeCanvas);
+
+    const drawWaves = () => {
+      // Clear canvas with ocean gradient background
+      const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+      gradient.addColorStop(0, '#0a1128'); // Deep dark blue at top
+      gradient.addColorStop(0.5, '#1e3a5f'); // Mid blue
+      gradient.addColorStop(1, '#2e5266'); // Lighter blue at bottom
+      
+      ctx.fillStyle = gradient;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      // Draw multiple wave layers
+      const waves = [
+        { y: canvas.height * 0.7, amplitude: 30, frequency: 0.02, speed: 0.02, color: 'rgba(52, 152, 219, 0.3)' },
+        { y: canvas.height * 0.75, amplitude: 25, frequency: 0.015, speed: 0.015, color: 'rgba(41, 128, 185, 0.4)' },
+        { y: canvas.height * 0.8, amplitude: 20, frequency: 0.01, speed: 0.01, color: 'rgba(52, 152, 219, 0.5)' },
+        { y: canvas.height * 0.85, amplitude: 15, frequency: 0.008, speed: 0.008, color: 'rgba(93, 173, 226, 0.6)' },
+      ];
+
+      waves.forEach(wave => {
+        ctx.beginPath();
+        ctx.moveTo(0, canvas.height);
+
+        // Draw wave using sine function
+        for (let x = 0; x <= canvas.width; x++) {
+          const y = wave.y + Math.sin(x * wave.frequency + time * wave.speed) * wave.amplitude;
+          ctx.lineTo(x, y);
+        }
+
+        ctx.lineTo(canvas.width, canvas.height);
+        ctx.closePath();
+        ctx.fillStyle = wave.color;
+        ctx.fill();
+      });
+    };
+
+    const animate = () => {
+      time += 1;
+      drawWaves();
+      animationId = requestAnimationFrame(animate);
+    };
+
+    animate();
+
+    return () => {
+      window.removeEventListener('resize', resizeCanvas);
+      cancelAnimationFrame(animationId);
+    };
+  }, []);
+
+  return (
+    <canvas
+      ref={canvasRef}
+      className="fixed inset-0 pointer-events-none"
+      style={{ zIndex: 0, background: '#0a1128' }}
+    />
+  );
+};
+
 const NatureBackground: React.FC = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
+    console.log('NatureBackground mounted and useEffect running');
     const canvas = canvasRef.current;
-    if (!canvas) return;
+    if (!canvas) {
+      console.log('NatureBackground: canvas is null');
+      return;
+    }
 
     const ctx = canvas.getContext('2d');
-    if (!ctx) return;
+    if (!ctx) {
+      console.log('NatureBackground: context is null');
+      return;
+    }
+    console.log('NatureBackground: canvas and context ready, starting animation');
 
     let animationId: number;
 
@@ -273,10 +368,11 @@ const NatureBackground: React.FC = () => {
   return (
     <canvas
       ref={canvasRef}
-      className="fixed top-0 left-0 w-full h-full -z-10"
-      style={{ background: '#1a1a2e' }}
+      className="fixed inset-0 pointer-events-none"
+      style={{ zIndex: 0, background: '#1a1a2e' }}
     />
   );
 };
 
+export { WavesBackground, NatureBackground };
 export default NatureBackground;

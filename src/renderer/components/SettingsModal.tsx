@@ -213,7 +213,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                 description="Choose your preferred animated background theme."
                 value={localSettings.theme}
                 options={[
-                  { value: 'nature', label: '🏕️ Nature (Waterfall & Campfire)' },
+                  { value: 'nature', label: '� Waves (Ocean)' },
                   { value: 'starfield', label: '⭐ Starfield (Space)' },
                 ]}
                 onChange={(v) => handleChange('theme', v as 'nature' | 'starfield')}
@@ -307,27 +307,27 @@ const SettingToggle: React.FC<SettingToggleProps> = ({ label, description, check
 );
 
 // Select component
-interface SettingSelectProps {
+interface SettingSelectProps<T = number> {
   label: string;
   description: string;
-  value: number;
-  options: { value: number; label: string }[];
-  onChange: (value: number) => void;
+  value: T;
+  options: { value: T; label: string }[];
+  onChange: (value: T) => void;
 }
 
-const SettingSelect: React.FC<SettingSelectProps> = ({ label, description, value, options, onChange }) => (
+const SettingSelect = <T extends string | number>({ label, description, value, options, onChange }: SettingSelectProps<T>) => (
   <div className="flex items-start gap-3">
     <div className="flex-1">
       <p className="text-sm text-discord-text">{label}</p>
       <p className="text-xs text-discord-text-muted">{description}</p>
     </div>
     <select
-      value={value}
-      onChange={(e) => onChange(Number(e.target.value))}
+      value={value as string | number}
+      onChange={(e) => onChange(typeof value === 'number' ? Number(e.target.value) as T : e.target.value as T)}
       className="bg-discord-darker border border-discord-lighter rounded px-3 py-1.5 text-sm text-discord-text focus:outline-none focus:border-discord-accent"
     >
       {options.map((opt) => (
-        <option key={opt.value} value={opt.value}>
+        <option key={String(opt.value)} value={opt.value as string | number}>
           {opt.label}
         </option>
       ))}

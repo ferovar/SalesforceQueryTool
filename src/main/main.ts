@@ -73,7 +73,7 @@ function createMainWindow(): void {
   console.log('Loading main window content...');
   if (isDev) {
     mainWindow.loadURL('http://localhost:5173');
-    // Press F12 to open DevTools when needed
+    // mainWindow.webContents.openDevTools(); // Uncomment to open dev tools automatically
   } else {
     mainWindow.loadFile(path.join(__dirname, '../renderer/index.html'));
   }

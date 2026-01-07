@@ -4,8 +4,6 @@ import LoginPage from './pages/LoginPage';
 import MainPage from './pages/MainPage';
 import SettingsModal from './components/SettingsModal';
 import PerformanceMonitor from './components/PerformanceMonitor';
-import StarfieldBackground from './components/StarfieldBackground';
-import NatureBackground from './components/NatureBackground';
 import { SettingsProvider, useSettings } from './contexts/SettingsContext';
 
 export interface UserSession {
@@ -79,11 +77,14 @@ function AppContent() {
     );
   }
 
+  // Debug log to see what theme is being used
+  console.log('Current theme:', settings.theme, 'Type:', typeof settings.theme);
+  console.log('Comparison result (theme === "nature"):', settings.theme === 'nature');
+  console.log('Comparison result (theme === "starfield"):', settings.theme === 'starfield');
+  console.log('Full settings object:', settings);
+
   return (
     <div className="h-screen w-screen bg-discord-darker flex flex-col overflow-hidden">
-      {/* Animated Background */}
-      {settings.theme === 'starfield' ? <StarfieldBackground /> : <NatureBackground />}
-      
       <TitleBar 
         isLoggedIn={isLoggedIn} 
         onLogout={handleLogout}

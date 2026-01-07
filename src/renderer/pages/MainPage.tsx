@@ -6,6 +6,7 @@ import QueryBuilder from '../components/QueryBuilder';
 import ResultsTable from '../components/ResultsTable';
 import QueryHistory from '../components/QueryHistory';
 import AmbientStarfield from '../components/AmbientStarfield';
+import AmbientWaves from '../components/AmbientWaves';
 import AnonymousApexModal from '../components/AnonymousApexModal';
 import { useSettings } from '../contexts/SettingsContext';
 
@@ -292,8 +293,12 @@ const MainPage: React.FC<MainPageProps> = ({ session, onOpenSettings }) => {
 
   return (
     <div className="h-full flex bg-discord-medium relative">
-      {/* Ambient Starfield Background */}
-      <AmbientStarfield opacity={0.35} starCount={120} shootingStarInterval={12000} />
+      {/* Ambient Background - Theme-dependent */}
+      {settings.theme === 'nature' ? (
+        <AmbientWaves opacity={0.4} />
+      ) : (
+        <AmbientStarfield opacity={0.35} starCount={120} shootingStarInterval={12000} />
+      )}
       
       {/* Left Sidebar - Object List */}
       <div className="w-72 flex-shrink-0 bg-discord-dark/90 backdrop-blur-sm border-r border-discord-darker relative z-10">

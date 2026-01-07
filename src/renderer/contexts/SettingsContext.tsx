@@ -20,7 +20,9 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     try {
       const saved = localStorage.getItem(SETTINGS_STORAGE_KEY);
       if (saved) {
-        return { ...defaultSettings, ...JSON.parse(saved) };
+        const parsed = JSON.parse(saved);
+        // Ensure all default properties exist, especially new ones like theme
+        return { ...defaultSettings, ...parsed };
       }
     } catch (e) {
       console.error('Error loading settings:', e);
