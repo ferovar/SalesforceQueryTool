@@ -131,11 +131,15 @@ describe('AnonymousApexModal', () => {
 
       // Find and type in the textarea
       const textarea = screen.getByPlaceholderText(/Enter your Apex code here/i);
+      await user.clear(textarea);
       await user.type(textarea, 'System.debug("test");');
 
       // Click execute
       const executeButton = screen.getByText('Execute');
-      await user.click(executeButton);
+      
+      await waitFor(async () => {
+        await user.click(executeButton);
+      });
 
       await waitFor(() => {
         expect(mockExecute).toHaveBeenCalledWith(
