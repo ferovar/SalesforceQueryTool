@@ -517,6 +517,7 @@ const AnonymousApexModal: React.FC<AnonymousApexModalProps> = ({ isOpen, onClose
                       onScroll={handleEditorScroll}
                       className="flex-1 p-4 bg-transparent text-transparent caret-white font-mono text-sm resize-none focus:outline-none border-none relative z-10"
                       spellCheck={false}
+                      data-testid="apex-code-textarea"
                     />
                   </div>
 
