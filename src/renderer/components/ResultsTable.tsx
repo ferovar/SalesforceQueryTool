@@ -599,7 +599,7 @@ const ResultsTable: React.FC<ResultsTableProps> = ({
 
       {/* Table */}
       <div className="flex-1 overflow-auto">
-        <table className="data-table">
+        <table className={`data-table ${settings.compactResultsView ? 'data-table-compact' : ''}`}>
           <thead>
             <tr>
               <th className="w-10 text-center">

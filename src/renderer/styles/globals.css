@@ -134,6 +134,19 @@ input:focus, textarea:focus, select:focus {
   @apply bg-discord-light;
 }
 
+/* Compact table variant */
+.data-table-compact {
+  @apply text-xs;
+}
+
+.data-table-compact th {
+  @apply px-2 py-1;
+}
+
+.data-table-compact td {
+  @apply px-2 py-1;
+}
+
 /* Code editor styles */
 .query-editor {
   @apply font-mono text-sm bg-discord-darker rounded-lg;
