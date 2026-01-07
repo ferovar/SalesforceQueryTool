@@ -277,4 +277,393 @@ describe('SalesforceService', () => {
       expect(service.isConnected()).toBe(true);
     });
   });
+
+  describe('searchUsers', () => {
+    beforeEach(async () => {
+      mockConnection.login.mockResolvedValue({ id: 'user-123', organizationId: 'org-456' });
+      await service.login('test@example.com', 'password', 'token', false);
+    });
+
+    it('should search users by name', async () => {
+      mockConnection.query.mockResolvedValue({
+        done: true,
+        records: [
+          {
+            Id: '005abc123',
+            Name: 'John Doe',
+            Username: 'john@example.com',
+            Email: 'john@example.com',
+            IsActive: true,
+            Profile: { Name: 'System Administrator' },
+          },
+        ],
+      });
+
+      const results = await service.searchUsers('John');
+
+      expect(results).toHaveLength(1);
+      expect(results[0]).toEqual({
+        id: '005abc123',
+        name: 'John Doe',
+        username: 'john@example.com',
+        email: 'john@example.com',
+        isActive: true,
+        profileName: 'System Administrator',
+      });
+      expect(mockConnection.query).toHaveBeenCalled();
+      const queryArg = mockConnection.query.mock.calls[0][0];
+      expect(queryArg).toContain("Name LIKE '%John%'");
+    });
+
+    it('should search users by email', async () => {
+      mockConnection.query.mockResolvedValue({
+        done: true,
+        records: [
+          {
+            Id: '005abc123',
+            Name: 'John Doe',
+            Username: 'john@example.com',
+            Email: 'john@example.com',
+            IsActive: true,
+            Profile: { Name: 'Standard User' },
+          },
+        ],
+      });
+
+      await service.searchUsers('john@example.com');
+
+      expect(mockConnection.query).toHaveBeenCalledWith(
+        expect.stringContaining("Email LIKE '%john@example.com%'")
+      );
+    });
+
+    it('should return empty array when no users found', async () => {
+      mockConnection.query.mockResolvedValue({
+        done: true,
+        records: [],
+      });
+
+      const results = await service.searchUsers('nonexistent');
+
+      expect(results).toHaveLength(0);
+    });
+
+    it('should throw error if not connected', async () => {
+      const newService = new SalesforceService();
+
+      await expect(newService.searchUsers('test')).rejects.toThrow(
+        'Not connected to Salesforce'
+      );
+    });
+  });
+
+  describe('createUserTraceFlag', () => {
+    let mockTooling: any;
+
+    beforeEach(async () => {
+      mockTooling = {
+        query: jest.fn(),
+        sobject: jest.fn(),
+      };
+      mockConnection.tooling = mockTooling;
+      mockConnection.login.mockResolvedValue({ id: 'user-123', organizationId: 'org-456' });
+      await service.login('test@example.com', 'password', 'token', false);
+    });
+
+    it('should create a new trace flag with debug level', async () => {
+      // Mock debug level query - not found
+      mockTooling.query.mockResolvedValueOnce({
+        done: true,
+        records: [],
+      });
+
+      // Mock debug level creation
+      const mockDebugLevelSobject = {
+        create: jest.fn().mockResolvedValue({
+          success: true,
+          id: '7dl123',
+        }),
+      };
+      mockTooling.sobject.mockReturnValueOnce(mockDebugLevelSobject);
+
+      // Mock existing trace flag query
+      mockTooling.query.mockResolvedValueOnce({
+        done: true,
+        records: [],
+      });
+
+      // Mock trace flag creation
+      const mockTraceFlagSobject = {
+        create: jest.fn().mockResolvedValue({
+          success: true,
+          id: '7tf123',
+        }),
+      };
+      mockTooling.sobject.mockReturnValueOnce(mockTraceFlagSobject);
+
+      const result = await service.createUserTraceFlag('005abc123', 60);
+
+      expect(result.traceFlagId).toBe('7tf123');
+      expect(mockDebugLevelSobject.create).toHaveBeenCalledWith({
+        DeveloperName: 'SFQueryToolUserDebug',
+        MasterLabel: 'SF Query Tool User Debug',
+        ApexCode: 'FINEST',
+        ApexProfiling: 'INFO',
+        Callout: 'INFO',
+        Database: 'FINEST',
+        System: 'DEBUG',
+        Validation: 'INFO',
+        Visualforce: 'INFO',
+        Workflow: 'INFO',
+        Nba: 'INFO',
+        Wave: 'INFO',
+      });
+    });
+
+    it('should reuse existing debug level', async () => {
+      // Mock debug level query - found
+      mockTooling.query.mockResolvedValueOnce({
+        done: true,
+        records: [{ Id: '7dl123' }],
+      });
+
+      // Mock existing trace flag query
+      mockTooling.query.mockResolvedValueOnce({
+        done: true,
+        records: [],
+      });
+
+      // Mock trace flag creation
+      const mockTraceFlagSobject = {
+        create: jest.fn().mockResolvedValue({
+          success: true,
+          id: '7tf123',
+        }),
+      };
+      mockTooling.sobject.mockReturnValueOnce(mockTraceFlagSobject);
+
+      await service.createUserTraceFlag('005abc123', 30);
+
+      // Should not try to create debug level
+      expect(mockTooling.sobject).toHaveBeenCalledTimes(1); // Only for trace flag
+    });
+
+    it('should update existing trace flag', async () => {
+      // Mock debug level query
+      mockTooling.query.mockResolvedValueOnce({
+        done: true,
+        records: [{ Id: '7dl123' }],
+      });
+
+      // Mock existing trace flag query - found
+      mockTooling.query.mockResolvedValueOnce({
+        done: true,
+        records: [{ Id: '7tf456' }],
+      });
+
+      // Mock trace flag update
+      const mockTraceFlagSobject = {
+        update: jest.fn().mockResolvedValue({
+          success: true,
+          id: '7tf456',
+        }),
+      };
+      mockTooling.sobject.mockReturnValueOnce(mockTraceFlagSobject);
+
+      const result = await service.createUserTraceFlag('005abc123', 120);
+
+      expect(result.traceFlagId).toBe('7tf456');
+      expect(mockTraceFlagSobject.update).toHaveBeenCalled();
+    });
+
+    it('should throw error if not connected', async () => {
+      const newService = new SalesforceService();
+
+      await expect(
+        newService.createUserTraceFlag('005abc123', 60)
+      ).rejects.toThrow('Not connected to Salesforce');
+    });
+  });
+
+  describe('deleteTraceFlag', () => {
+    let mockTooling: any;
+
+    beforeEach(async () => {
+      mockTooling = {
+        sobject: jest.fn(),
+      };
+      mockConnection.tooling = mockTooling;
+      mockConnection.login.mockResolvedValue({ id: 'user-123', organizationId: 'org-456' });
+      await service.login('test@example.com', 'password', 'token', false);
+    });
+
+    it('should delete a trace flag', async () => {
+      const mockTraceFlagSobject = {
+        delete: jest.fn().mockResolvedValue({
+          success: true,
+          id: '7tf123',
+        }),
+      };
+      mockTooling.sobject.mockReturnValue(mockTraceFlagSobject);
+
+      await service.deleteTraceFlag('7tf123');
+
+      expect(mockTraceFlagSobject.delete).toHaveBeenCalledWith('7tf123');
+    });
+
+    it('should throw error if not connected', async () => {
+      const newService = new SalesforceService();
+
+      await expect(newService.deleteTraceFlag('7tf123')).rejects.toThrow(
+        'Not connected to Salesforce'
+      );
+    });
+  });
+
+  describe('getActiveTraceFlags', () => {
+    let mockTooling: any;
+
+    beforeEach(async () => {
+      mockTooling = {
+        query: jest.fn(),
+      };
+      mockConnection.tooling = mockTooling;
+      mockConnection.login.mockResolvedValue({ id: 'user-123', organizationId: 'org-456' });
+      await service.login('test@example.com', 'password', 'token', false);
+    });
+
+    it('should get active trace flags with user names', async () => {
+      // Mock the trace flag query
+      mockTooling.query.mockResolvedValueOnce({
+        done: true,
+        records: [
+          {
+            Id: '7tf123',
+            TracedEntityId: '005abc123',
+            LogType: 'USER_DEBUG',
+            ExpirationDate: '2024-12-31T23:59:59Z',
+            DebugLevel: { DeveloperName: 'SFQueryToolUserDebug' },
+          },
+        ],
+      });
+
+      // Mock the user query
+      mockConnection.query.mockResolvedValueOnce({
+        done: true,
+        records: [
+          {
+            Id: '005abc123',
+            Name: 'John Doe',
+          },
+        ],
+      });
+
+      const results = await service.getActiveTraceFlags();
+
+      expect(results).toHaveLength(1);
+      expect(results[0]).toEqual({
+        id: '7tf123',
+        tracedEntityId: '005abc123',
+        tracedEntityName: 'John Doe',
+        logType: 'USER_DEBUG',
+        expirationDate: '2024-12-31T23:59:59Z',
+        debugLevelName: 'SFQueryToolUserDebug',
+      });
+    });
+
+    it('should return empty array when no active flags', async () => {
+      mockTooling.query.mockResolvedValue({
+        done: true,
+        records: [],
+      });
+
+      const results = await service.getActiveTraceFlags();
+
+      expect(results).toHaveLength(0);
+    });
+
+    it('should throw error if not connected', async () => {
+      const newService = new SalesforceService();
+
+      await expect(newService.getActiveTraceFlags()).rejects.toThrow(
+        'Not connected to Salesforce'
+      );
+    });
+  });
+
+  describe('getDebugLogsForUser', () => {
+    let mockTooling: any;
+
+    beforeEach(async () => {
+      mockTooling = {
+        query: jest.fn(),
+      };
+      mockConnection.tooling = mockTooling;
+      mockConnection.login.mockResolvedValue({ id: 'user-123', organizationId: 'org-456' });
+      await service.login('test@example.com', 'password', 'token', false);
+    });
+
+    it('should get debug logs for a user', async () => {
+      mockTooling.query.mockResolvedValue({
+        done: true,
+        records: [
+          {
+            Id: '07L123',
+            LogLength: 5000,
+            Operation: 'API',
+            Status: 'Success',
+            DurationMilliseconds: 250,
+            StartTime: '2024-01-01T12:00:00Z',
+            Request: 'POST /services/apexrest/MyService',
+          },
+        ],
+      });
+
+      const results = await service.getDebugLogsForUser('005abc123');
+
+      expect(results).toHaveLength(1);
+      expect(results[0]).toEqual({
+        id: '07L123',
+        logLength: 5000,
+        operation: 'API',
+        status: 'Success',
+        durationMs: 250,
+        startTime: '2024-01-01T12:00:00Z',
+        request: 'POST /services/apexrest/MyService',
+      });
+    });
+
+    it('should filter logs by time range', async () => {
+      mockTooling.query.mockResolvedValue({
+        done: true,
+        records: [],
+      });
+
+      const sinceTime = '2024-01-01T12:00:00Z';
+      await service.getDebugLogsForUser('005abc123', sinceTime);
+
+      expect(mockTooling.query).toHaveBeenCalledWith(
+        expect.stringContaining(`StartTime > ${sinceTime}`)
+      );
+    });
+
+    it('should return empty array when no logs found', async () => {
+      mockTooling.query.mockResolvedValue({
+        done: true,
+        records: [],
+      });
+
+      const results = await service.getDebugLogsForUser('005abc123');
+
+      expect(results).toHaveLength(0);
+    });
+
+    it('should throw error if not connected', async () => {
+      const newService = new SalesforceService();
+
+      await expect(
+        newService.getDebugLogsForUser('005abc123')
+      ).rejects.toThrow('Not connected to Salesforce');
+    });
+  });
 });
