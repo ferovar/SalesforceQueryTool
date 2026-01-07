@@ -515,6 +515,7 @@ const AnonymousApexModal: React.FC<AnonymousApexModalProps> = ({ isOpen, onClose
                       value={script}
                       onChange={(e) => setScript(e.target.value)}
                       onScroll={handleEditorScroll}
+                      placeholder="Enter your Apex code here..."
                       className="flex-1 p-4 bg-transparent text-transparent caret-white font-mono text-sm resize-none focus:outline-none border-none relative z-10"
                       spellCheck={false}
                     />
