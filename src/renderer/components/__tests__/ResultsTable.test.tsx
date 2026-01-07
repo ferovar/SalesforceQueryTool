@@ -334,7 +334,7 @@ describe('ResultsTable', () => {
           cell.classList.contains('bg-discord-accent/20') && 
           cell.classList.contains('animate-pulse')
         );
-        expect(savingCell).toBeDefined();
+        expect(savingCell).toBeTruthy();
       });
 
       // Resolve the update
@@ -346,7 +346,7 @@ describe('ResultsTable', () => {
         const successCell = Array.from(cells).find(cell => 
           cell.classList.contains('bg-green-500/20')
         );
-        expect(successCell).toBeDefined();
+        expect(successCell).toBeTruthy();
       });
     });
   });
@@ -384,10 +384,12 @@ describe('ResultsTable', () => {
       const onExportCsv = jest.fn();
       
       render(
-        <ResultsTable
-          {...defaultProps}
-          onExportCsv={onExportCsv}
-        />
+        <SettingsProvider>
+          <ResultsTable
+            {...defaultProps}
+            onExportCsv={onExportCsv}
+          />
+        </SettingsProvider>
       );
 
       const exportButton = screen.getByRole('button', { name: /export|csv/i });
