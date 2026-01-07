@@ -10,6 +10,7 @@ interface ObjectListProps {
   selectedObject: SalesforceObject | null;
   onSelectObject: (obj: SalesforceObject) => void;
   isLoading: boolean;
+  themeColor?: string;
 }
 
 const ObjectList: React.FC<ObjectListProps> = ({
@@ -17,6 +18,7 @@ const ObjectList: React.FC<ObjectListProps> = ({
   selectedObject,
   onSelectObject,
   isLoading,
+  themeColor,
 }) => {
   const { settings, updateSettings } = useSettings();
   const [searchTerm, setSearchTerm] = useState('');
@@ -125,7 +127,12 @@ const ObjectList: React.FC<ObjectListProps> = ({
   }, [filteredObjects, settings.showRecentObjectsFirst, searchTerm, recentObjects]);
 
   return (
-    <div className="h-full flex flex-col">
+    <div 
+      className="h-full flex flex-col"
+      style={themeColor ? {
+        background: `linear-gradient(to right, ${themeColor}08, transparent 100%)`,
+      } : undefined}
+    >
       {/* Header */}
       <div className="p-3 border-b border-discord-darker">
         <h2 className="text-sm font-semibold text-discord-text-muted uppercase tracking-wide mb-3">

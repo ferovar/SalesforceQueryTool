@@ -85,7 +85,14 @@ function AppContent() {
   console.log('Full settings object:', settings);
 
   return (
-    <div className="h-screen w-screen bg-discord-darker flex flex-col overflow-hidden">
+    <div className="h-screen w-screen bg-discord-darker flex flex-col overflow-hidden relative">
+      {/* Accent stripe on the left edge */}
+      {isLoggedIn && session?.color && (
+        <div 
+          className="absolute left-0 top-0 bottom-0 w-1 z-50 transition-colors duration-300"
+          style={{ backgroundColor: session.color }}
+        />
+      )}
       <TitleBar 
         isLoggedIn={isLoggedIn} 
         onLogout={handleLogout}

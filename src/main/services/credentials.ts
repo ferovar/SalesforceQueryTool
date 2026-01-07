@@ -177,7 +177,7 @@ export class CredentialsStore {
     }));
   }
 
-  getOAuthLoginById(id: string): { instanceUrl: string; accessToken: string; refreshToken: string; isSandbox: boolean; username: string } | null {
+  getOAuthLoginById(id: string): { instanceUrl: string; accessToken: string; refreshToken: string; isSandbox: boolean; username: string; color?: string; label?: string } | null {
     const savedOAuthLogins = this.store.get('savedOAuthLogins') || [];
     const login = savedOAuthLogins.find((l) => l.id === id);
     
@@ -190,6 +190,8 @@ export class CredentialsStore {
         refreshToken: login.refreshToken ? this.decrypt(login.refreshToken) : '',
         isSandbox: login.isSandbox,
         username: login.username,
+        color: login.color,
+        label: login.label,
       };
     } catch {
       return null;
@@ -219,13 +221,14 @@ export class CredentialsStore {
     }
   }
 
-  getSavedLogins(): Array<{ label: string; username: string; isSandbox: boolean; lastUsed: string }> {
+  getSavedLogins(): Array<{ label: string; username: string; isSandbox: boolean; lastUsed: string; color?: string }> {
     const savedLogins = this.store.get('savedLogins') || [];
     return savedLogins.map((login) => ({
       label: login.label || login.username,
       username: login.username,
       isSandbox: login.isSandbox,
       lastUsed: login.lastUsed,
+      color: login.color,
     }));
   }
 
@@ -242,6 +245,7 @@ export class CredentialsStore {
         password: this.decrypt(login.password),
         securityToken: this.decrypt(login.securityToken),
         isSandbox: login.isSandbox,
+        color: login.color,
       };
     } catch {
       return null;
@@ -258,6 +262,28 @@ export class CredentialsStore {
     if (lastCreds && lastCreds.username === username) {
       this.store.set('lastCredentials', null);
     }
+  }
+
+  updateLoginMetadata(username: string, label: string, color: string): void {
+    const savedLogins = this.store.get('savedLogins') || [];
+    const updated = savedLogins.map((login) => {
+      if (login.username === username) {
+        return { ...login, label, color };
+      }
+      return login;
+    });
+    this.store.set('savedLogins', updated);
+  }
+
+  updateOAuthMetadata(id: string, label: string, color: string): void {
+    const savedOAuthLogins = this.store.get('savedOAuthLogins') || [];
+    const updated = savedOAuthLogins.map((login) => {
+      if (login.id === id) {
+        return { ...login, label, color };
+      }
+      return login;
+    });
+    this.store.set('savedOAuthLogins', updated);
   }
 
   clearCredentials(): void {

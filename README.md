@@ -65,6 +65,7 @@ Built with Electron, React, and TypeScript.
 | Feature | Description |
 |---------|-------------|
 | **Modern UI** | Clean, professional interface designed for extended use |
+| **Multi-Org Color Coding** | Assign colors to connections for instant visual identification |
 | **Blazing Fast** | Optimized for large datasets |
 | **Production Warnings** | Visual indicators when connected to production |
 | **Customizable Settings** | Toggle features like inline editing, migration, and more |
@@ -121,7 +122,16 @@ The installer will be created in the `release` folder.
 2. Choose your login method:
    - **Username & Password**: Enter credentials + security token
    - **OAuth**: Browser-based authentication (requires Connected App)
-3. Optionally save credentials for quick access
+3. Optionally save credentials with a custom label and color for quick identification
+4. Edit saved connection labels and colors at any time to organize your orgs
+
+### Managing Multiple Orgs
+
+The color coding system helps prevent mistakes when working with multiple environments:
+- Assign each org a unique color (10 preset options available)
+- Colors appear in the title bar, sidebar borders, and result table headers
+- Text color automatically adjusts for readability on light or dark backgrounds
+- Perfect for distinguishing between production, sandbox, and dev orgs
 
 ### Querying Data
 
@@ -221,6 +231,8 @@ SalesforceQueryTool/
 ## Roadmap
 
 ### Recently Added
+- Multi-org color coding for visual identification
+- Editable connection labels and colors
 - Anonymous Apex execution with debug log viewer
 - Query history with search and filtering
 - Script library for reusable Apex code

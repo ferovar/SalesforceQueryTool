@@ -330,6 +330,7 @@ const MainPage: React.FC<MainPageProps> = ({ session, onOpenSettings }) => {
           selectedObject={selectedObject}
           onSelectObject={handleObjectSelect}
           isLoading={isLoadingObjects}
+          themeColor={session.color}
         />
       </div>
 
@@ -372,6 +373,7 @@ const MainPage: React.FC<MainPageProps> = ({ session, onOpenSettings }) => {
                 sourceUsername={session.username}
                 executionStartTime={queryStartTime}
                 onCancelQuery={handleCancelQuery}
+                themeColor={session.color}
                 onRecordUpdate={(recordId, field, newValue) => {
                   // Update local results to reflect the change
                   setQueryResults(prev => {
@@ -420,6 +422,7 @@ const MainPage: React.FC<MainPageProps> = ({ session, onOpenSettings }) => {
                   sourceUsername={session.username}
                   executionStartTime={queryStartTime}
                   onCancelQuery={handleCancelQuery}
+                  themeColor={session.color}
                   onRecordUpdate={() => {}}
                 />
               ) : (

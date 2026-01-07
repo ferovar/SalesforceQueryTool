@@ -160,6 +160,7 @@ ipcMain.handle('salesforce:login', async (_event, credentials: {
   securityToken: string;
   isSandbox: boolean;
   saveCredentials: boolean;
+  color?: string;
 }) => {
   try {
     const result = await salesforceService.login(
@@ -176,10 +177,11 @@ ipcMain.handle('salesforce:login', async (_event, credentials: {
         password: credentials.password,
         securityToken: credentials.securityToken,
         isSandbox: credentials.isSandbox,
+        color: credentials.color,
       });
     }
     
-    return { success: true, data: { ...result, username: credentials.username } };
+    return { success: true, data: { ...result, username: credentials.username, color: credentials.color } };
   } catch (error: any) {
     return { success: false, error: error.message };
   }
@@ -215,7 +217,13 @@ ipcMain.handle('salesforce:loginWithSavedOAuth', async (_event, id: string) => {
     }
     
     const result = await salesforceService.loginWithSavedOAuth(savedOAuth.instanceUrl, savedOAuth.accessToken);
-    return { success: true, data: result };
+    return { 
+      success: true, 
+      data: { 
+        ...result,
+        color: savedOAuth.color 
+      } 
+    };
   } catch (error: any) {
     return { success: false, error: error.message };
   }
@@ -294,6 +302,11 @@ ipcMain.handle('credentials:deleteSavedLogin', (_event, username: string) => {
   return { success: true };
 });
 
+ipcMain.handle('credentials:updateLoginMetadata', (_event, username: string, label: string, color: string) => {
+  credentialsStore.updateLoginMetadata(username, label, color);
+  return { success: true };
+});
+
 ipcMain.handle('credentials:getLoginByUsername', (_event, username: string) => {
   return credentialsStore.getLoginByUsername(username);
 });
@@ -304,6 +317,11 @@ ipcMain.handle('credentials:getSavedOAuthLogins', () => {
 
 ipcMain.handle('credentials:deleteOAuthLogin', (_event, id: string) => {
   credentialsStore.deleteOAuthLogin(id);
+  return { success: true };
+});
+
+ipcMain.handle('credentials:updateOAuthMetadata', (_event, id: string, label: string, color: string) => {
+  credentialsStore.updateOAuthMetadata(id, label, color);
   return { success: true };
 });
 

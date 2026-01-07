@@ -34,6 +34,10 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess, onOpenSettings })
   const [saveOAuthConnection, setSaveOAuthConnection] = useState(true);
   const [oauthClientId, setOauthClientId] = useState('');
   const [showOAuthSetup, setShowOAuthSetup] = useState(false);
+  const [editingCredential, setEditingCredential] = useState<string | null>(null);
+  const [editingOAuth, setEditingOAuth] = useState<string | null>(null);
+  const [editLabel, setEditLabel] = useState('');
+  const [editColor, setEditColor] = useState('#5865f2');
 
   useEffect(() => {
     loadSavedLogins();
@@ -96,10 +100,11 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess, onOpenSettings })
         securityToken: fullCredentials.securityToken,
         isSandbox: fullCredentials.isSandbox,
         saveCredentials: false, // Already saved
+        color: fullCredentials.color,
       });
 
       if (result.success) {
-        onLoginSuccess(result.data);
+        onLoginSuccess({ ...result.data, color: fullCredentials.color });
       } else {
         setError(result.error || 'Login failed');
       }
@@ -209,6 +214,48 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess, onOpenSettings })
     }
   };
 
+  const handleEditCredential = (login: SavedLogin, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setEditingCredential(login.username);
+    setEditLabel(login.label);
+    setEditColor(login.color || '#5865f2');
+  };
+
+  const handleSaveCredentialEdit = async (username: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    console.log('Saving credential edit:', username, editLabel, editColor);
+    try {
+      const result = await window.electronAPI.credentials.updateLoginMetadata(username, editLabel, editColor);
+      console.log('Update result:', result);
+      setEditingCredential(null);
+      await loadSavedLogins();
+    } catch (err) {
+      console.error('Error updating credential metadata:', err);
+      alert('Failed to save changes: ' + (err as Error).message);
+    }
+  };
+
+  const handleEditOAuth = (login: SavedOAuthLogin, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setEditingOAuth(login.id);
+    setEditLabel(login.label);
+    setEditColor(login.color || '#5865f2');
+  };
+
+  const handleSaveOAuthEdit = async (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    console.log('Saving OAuth edit:', id, editLabel, editColor);
+    try {
+      const result = await window.electronAPI.credentials.updateOAuthMetadata(id, editLabel, editColor);
+      console.log('Update result:', result);
+      setEditingOAuth(null);
+      await loadSavedOAuthLogins();
+    } catch (err) {
+      console.error('Error updating OAuth metadata:', err);
+      alert('Failed to save changes: ' + (err as Error).message);
+    }
+  };
+
   const { settings } = useSettings();
 
   return (
@@ -248,57 +295,111 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess, onOpenSettings })
         </div>
       )}
       
-      {/* Left Side - Branding */}
-      <div className="hidden lg:flex lg:w-1/2 relative z-10 flex-col items-center justify-center p-12">
-        <div className="text-center">
-          {/* Large Logo */}
-          <div className="inline-flex items-center justify-center w-32 h-32 rounded-full bg-discord-accent/10 mb-8">
-            <svg className="w-20 h-20" viewBox="0 0 100 100" fill="none">
+      {/* Left Side - Hero Section */}
+      <div className="hidden lg:flex lg:w-2/5 relative z-10 flex-col p-8 border-r border-discord-lighter/10 overflow-y-auto">
+        <div className="max-w-lg my-auto">
+          {/* Animated Logo */}
+          <div className="inline-flex items-center justify-center w-20 h-20 rounded-2xl bg-gradient-to-br from-discord-accent/20 to-discord-accent/5 mb-6 group hover:scale-105 transition-transform">
+            <svg className="w-12 h-12 group-hover:scale-110 transition-transform" viewBox="0 0 100 100" fill="none">
               <path d="M80 55c0-8.284-6.716-15-15-15-.74 0-1.466.054-2.175.158C60.33 31.21 52.067 25 42.5 25 30.626 25 21 34.626 21 46.5c0 .84.048 1.67.14 2.484C14.023 51.145 9 57.817 9 65.5 9 75.165 16.835 83 26.5 83h48c10.77 0 19.5-8.73 19.5-19.5 0-4.41-1.46-8.48-3.926-11.754C83.17 50.246 80 52.284 80 55z" fill="#5865f2"/>
               <circle cx="45" cy="52" r="12" stroke="#fff" strokeWidth="3" fill="none"/>
               <path d="M54 61l10 10" stroke="#fff" strokeWidth="3" strokeLinecap="round"/>
             </svg>
           </div>
           
-          <h1 className="text-4xl font-bold text-discord-text mb-4">
-            Salesforce Query Tool
+          {/* Title & Tagline */}
+          <h1 className="text-4xl font-bold text-discord-text mb-2 leading-tight">
+            Salesforce<br/>Query Tool
           </h1>
-          <p className="text-lg text-discord-text-muted max-w-md">
-            A powerful, modern tool for querying and exploring your Salesforce data
+          <p className="text-lg text-discord-text-muted mb-6 leading-relaxed">
+            Query, Explore, and Manage<br/>Your Salesforce Data
           </p>
           
-          {/* Feature highlights */}
-          <div className="mt-12 space-y-4 text-left max-w-sm mx-auto">
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-full bg-discord-success/20 flex items-center justify-center">
-                <svg className="w-4 h-4 text-discord-success" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+          {/* Feature Cards */}
+          <div className="space-y-3">
+            {/* Query Builder Feature */}
+            <div className="group flex items-start gap-3 p-3 rounded-xl bg-discord-lighter/50 hover:bg-discord-lighter transition-all border border-transparent hover:border-discord-accent/20">
+              <div className="w-10 h-10 rounded-lg bg-discord-accent/20 flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform">
+                <svg className="w-5 h-5 text-discord-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                 </svg>
               </div>
-              <span className="text-discord-text-muted">Browse all Salesforce objects</span>
+              <div className="flex-1 min-w-0">
+                <h3 className="text-sm font-semibold text-discord-text mb-1">Advanced SOQL Builder</h3>
+                <p className="text-xs text-discord-text-muted leading-relaxed">Visual query builder with autocomplete and syntax highlighting</p>
+              </div>
             </div>
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-full bg-discord-success/20 flex items-center justify-center">
-                <svg className="w-4 h-4 text-discord-success" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+
+            {/* Export Feature */}
+            <div className="group flex items-start gap-3 p-3 rounded-xl bg-discord-lighter/50 hover:bg-discord-lighter transition-all border border-transparent hover:border-discord-success/20">
+              <div className="w-10 h-10 rounded-lg bg-discord-success/20 flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform">
+                <svg className="w-5 h-5 text-discord-success" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                 </svg>
               </div>
-              <span className="text-discord-text-muted">Build and execute SOQL queries</span>
+              <div className="flex-1 min-w-0">
+                <h3 className="text-sm font-semibold text-discord-text mb-1">Export to CSV/Excel</h3>
+                <p className="text-xs text-discord-text-muted leading-relaxed">Download query results with proper formatting and encoding</p>
+              </div>
             </div>
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-full bg-discord-success/20 flex items-center justify-center">
-                <svg className="w-4 h-4 text-discord-success" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+
+            {/* Migration Feature */}
+            <div className="group flex items-start gap-3 p-3 rounded-xl bg-discord-lighter/50 hover:bg-discord-lighter transition-all border border-transparent hover:border-blue-500/20">
+              <div className="w-10 h-10 rounded-lg bg-blue-500/20 flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform">
+                <svg className="w-5 h-5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
                 </svg>
               </div>
-              <span className="text-discord-text-muted">Export results to CSV</span>
+              <div className="flex-1 min-w-0">
+                <h3 className="text-sm font-semibold text-discord-text mb-1">Record Migration</h3>
+                <p className="text-xs text-discord-text-muted leading-relaxed">Transfer records seamlessly between Salesforce orgs</p>
+              </div>
+            </div>
+
+            {/* Apex Feature */}
+            <div className="group flex items-start gap-3 p-3 rounded-xl bg-discord-lighter/50 hover:bg-discord-lighter transition-all border border-transparent hover:border-orange-500/20">
+              <div className="w-10 h-10 rounded-lg bg-orange-500/20 flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform">
+                <svg className="w-5 h-5 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
+                </svg>
+              </div>
+              <div className="flex-1 min-w-0">
+                <h3 className="text-sm font-semibold text-discord-text mb-1">Anonymous Apex</h3>
+                <p className="text-xs text-discord-text-muted leading-relaxed">Execute Apex code directly with real-time debug logs</p>
+              </div>
+            </div>
+
+            {/* Query History Feature */}
+            <div className="group flex items-start gap-3 p-3 rounded-xl bg-discord-lighter/50 hover:bg-discord-lighter transition-all border border-transparent hover:border-purple-500/20">
+              <div className="w-10 h-10 rounded-lg bg-purple-500/20 flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform">
+                <svg className="w-5 h-5 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </div>
+              <div className="flex-1 min-w-0">
+                <h3 className="text-sm font-semibold text-discord-text mb-1">Query History & Saved Queries</h3>
+                <p className="text-xs text-discord-text-muted leading-relaxed">Never lose your work with automatic history and bookmarks</p>
+              </div>
+            </div>
+
+            {/* Multi-Org Feature */}
+            <div className="group flex items-start gap-3 p-3 rounded-xl bg-discord-lighter/50 hover:bg-discord-lighter transition-all border border-transparent hover:border-pink-500/20">
+              <div className="w-10 h-10 rounded-lg bg-pink-500/20 flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform">
+                <svg className="w-5 h-5 text-pink-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01" />
+                </svg>
+              </div>
+              <div className="flex-1 min-w-0">
+                <h3 className="text-sm font-semibold text-discord-text mb-1">Multi-Org Color Coding</h3>
+                <p className="text-xs text-discord-text-muted leading-relaxed">Visual themes prevent production mistakes</p>
+              </div>
             </div>
           </div>
         </div>
       </div>
 
       {/* Right Side - Login Form */}
-      <div className="w-full lg:w-1/2 flex items-center justify-center p-8 relative z-10">
+      <div className="w-full lg:w-3/5 flex items-center justify-center p-8 relative z-10">
         <div className="w-full max-w-md">
           {/* Mobile Header - only shown on small screens */}
           <div className="lg:hidden text-center mb-6">
@@ -404,32 +505,108 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess, onOpenSettings })
                         {savedLogins.map((login) => (
                           <div
                             key={login.username}
-                            onClick={() => handleSelectSavedLogin(login)}
-                            className="flex items-center justify-between px-3 py-2 hover:bg-discord-light cursor-pointer group"
+                            onClick={() => !editingCredential && handleSelectSavedLogin(login)}
+                            className={`px-3 py-2 ${!editingCredential ? 'hover:bg-discord-light cursor-pointer' : ''}`}
                           >
-                            <div className="flex items-center gap-3">
-                              {login.color && (
-                                <div 
-                                  className="w-3 h-3 rounded-full border border-discord-lighter flex-shrink-0" 
-                                  style={{ backgroundColor: login.color }}
-                                  title="Connection theme color"
+                            {editingCredential === login.username ? (
+                              <div className="space-y-2" onClick={(e) => e.stopPropagation()}>
+                                <input
+                                  type="text"
+                                  value={editLabel}
+                                  onChange={(e) => setEditLabel(e.target.value)}
+                                  placeholder="Connection label"
+                                  className="w-full px-2 py-1 text-sm bg-discord-dark rounded border border-discord-lighter text-discord-text"
                                 />
-                              )}
-                              <div>
-                                <p className="text-sm text-discord-text font-medium">{login.label}</p>
-                                <p className="text-xs text-discord-text-muted">
-                                  {login.username} • {login.isSandbox ? 'Sandbox' : 'Production'}
-                                </p>
+                                <div className="flex items-center gap-1.5 flex-wrap">
+                                  {[
+                                    { color: '#ef4444', name: 'Red' },
+                                    { color: '#f97316', name: 'Orange' },
+                                    { color: '#f59e0b', name: 'Amber' },
+                                    { color: '#eab308', name: 'Yellow' },
+                                    { color: '#84cc16', name: 'Lime' },
+                                    { color: '#10b981', name: 'Green' },
+                                    { color: '#14b8a6', name: 'Teal' },
+                                    { color: '#3b82f6', name: 'Blue' },
+                                    { color: '#8b5cf6', name: 'Purple' },
+                                    { color: '#ec4899', name: 'Pink' },
+                                  ].map(({ color, name }) => (
+                                    <button
+                                      key={color}
+                                      type="button"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setEditColor(color);
+                                      }}
+                                      className={`w-6 h-6 rounded-full border-2 transition-all ${
+                                        editColor === color ? 'border-white ring-2 ring-discord-accent' : 'border-discord-lighter hover:scale-110'
+                                      }`}
+                                      style={{ backgroundColor: color }}
+                                      title={name}
+                                    />
+                                  ))}
+                                </div>
+                                <div className="flex gap-2">
+                                  <button
+                                    type="button"
+                                    onClick={async (e) => {
+                                      e.stopPropagation();
+                                      await handleSaveCredentialEdit(login.username, e);
+                                    }}
+                                    className="flex-1 px-2 py-1 text-xs bg-discord-accent text-white rounded hover:bg-opacity-80"
+                                  >
+                                    Save
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setEditingCredential(null);
+                                    }}
+                                    className="px-2 py-1 text-xs bg-discord-lighter text-discord-text rounded hover:bg-discord-light"
+                                  >
+                                    Cancel
+                                  </button>
+                                </div>
                               </div>
-                            </div>
-                            <button
-                              onClick={(e) => handleDeleteSavedLogin(login.username, e)}
-                              className="p-1 opacity-0 group-hover:opacity-100 hover:bg-discord-danger rounded transition-all"
-                            >
-                              <svg className="w-4 h-4 text-discord-text-muted hover:text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                              </svg>
-                            </button>
+                            ) : (
+                              <div className="flex items-center justify-between group">
+                                <div className="flex items-center gap-3">
+                                  {login.color && (
+                                    <div 
+                                      className="w-3 h-3 rounded-full border border-discord-lighter flex-shrink-0" 
+                                      style={{ backgroundColor: login.color }}
+                                      title="Connection theme color"
+                                    />
+                                  )}
+                                  <div>
+                                    <p className="text-sm text-discord-text font-medium">{login.label}</p>
+                                    <p className="text-xs text-discord-text-muted">
+                                      {login.username} • {login.isSandbox ? 'Sandbox' : 'Production'}
+                                    </p>
+                                  </div>
+                                </div>
+                                <div className="flex gap-1">
+                                  <button
+                                    onClick={(e) => handleEditCredential(login, e)}
+                                    className="p-1 opacity-0 group-hover:opacity-100 hover:bg-discord-lighter rounded transition-all"
+                                    title="Edit label and color"
+                                  >
+                                    <svg className="w-4 h-4 text-discord-text-muted hover:text-discord-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                    </svg>
+                                  </button>
+                                  <button
+                                    onClick={(e) => handleDeleteSavedLogin(login.username, e)}
+                                    className="p-1 opacity-0 group-hover:opacity-100 hover:bg-discord-danger rounded transition-all"
+                                    title="Delete saved login"
+                                  >
+                                    <svg className="w-4 h-4 text-discord-text-muted hover:text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                    </svg>
+                                  </button>
+                                </div>
+                              </div>
+                            )}
                           </div>
                         ))}
                       </div>
@@ -513,19 +690,35 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess, onOpenSettings })
                           placeholder="Label (e.g., Production - Main Org)"
                           className="input"
                         />
-                        <div className="flex items-center gap-3">
-                          <label htmlFor="color-picker" className="text-sm text-discord-text-muted">
+                        <div className="space-y-2">
+                          <label className="text-sm text-discord-text-muted">
                             Theme Color:
                           </label>
-                          <input
-                            id="color-picker"
-                            type="color"
-                            value={color}
-                            onChange={(e) => setColor(e.target.value)}
-                            className="h-8 w-16 rounded border border-discord-lighter bg-discord-dark cursor-pointer"
-                            title="Choose a color for this connection"
-                          />
-                          <span className="text-xs text-discord-text-muted">Will appear in title bar when connected</span>
+                          <div className="flex items-center gap-2 flex-wrap">
+                            {[
+                              { color: '#ef4444', name: 'Red' },
+                              { color: '#f97316', name: 'Orange' },
+                              { color: '#f59e0b', name: 'Amber' },
+                              { color: '#eab308', name: 'Yellow' },
+                              { color: '#84cc16', name: 'Lime' },
+                              { color: '#10b981', name: 'Green' },
+                              { color: '#14b8a6', name: 'Teal' },
+                              { color: '#3b82f6', name: 'Blue' },
+                              { color: '#8b5cf6', name: 'Purple' },
+                              { color: '#ec4899', name: 'Pink' },
+                            ].map(({ color: colorValue, name }) => (
+                              <button
+                                key={colorValue}
+                                type="button"
+                                onClick={() => setColor(colorValue)}
+                                className={`w-8 h-8 rounded-full border-2 transition-all ${
+                                  color === colorValue ? 'border-white ring-2 ring-discord-accent' : 'border-discord-lighter hover:scale-110'
+                                }`}
+                                style={{ backgroundColor: colorValue }}
+                                title={name}
+                              />
+                            ))}
+                          </div>
                         </div>
                       </>
                     )}
@@ -571,32 +764,108 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess, onOpenSettings })
                         {savedOAuthLogins.map((login) => (
                           <div
                             key={login.id}
-                            onClick={() => handleSelectSavedOAuthLogin(login)}
-                            className="flex items-center justify-between px-3 py-2 hover:bg-discord-light cursor-pointer group"
+                            onClick={() => !editingOAuth && handleSelectSavedOAuthLogin(login)}
+                            className={`px-3 py-2 ${!editingOAuth ? 'hover:bg-discord-light cursor-pointer' : ''}`}
                           >
-                            <div className="flex items-center gap-3">
-                              {login.color && (
-                                <div 
-                                  className="w-3 h-3 rounded-full border border-discord-lighter flex-shrink-0" 
-                                  style={{ backgroundColor: login.color }}
-                                  title="Connection theme color"
+                            {editingOAuth === login.id ? (
+                              <div className="space-y-2" onClick={(e) => e.stopPropagation()}>
+                                <input
+                                  type="text"
+                                  value={editLabel}
+                                  onChange={(e) => setEditLabel(e.target.value)}
+                                  placeholder="Connection label"
+                                  className="w-full px-2 py-1 text-sm bg-discord-dark rounded border border-discord-lighter text-discord-text"
                                 />
-                              )}
-                              <div>
-                                <p className="text-sm text-discord-text font-medium">{login.label}</p>
-                                <p className="text-xs text-discord-text-muted">
-                                  {login.username} • {login.isSandbox ? 'Sandbox' : 'Production'}
-                                </p>
+                                <div className="flex items-center gap-1.5 flex-wrap">
+                                  {[
+                                    { color: '#ef4444', name: 'Red' },
+                                    { color: '#f97316', name: 'Orange' },
+                                    { color: '#f59e0b', name: 'Amber' },
+                                    { color: '#eab308', name: 'Yellow' },
+                                    { color: '#84cc16', name: 'Lime' },
+                                    { color: '#10b981', name: 'Green' },
+                                    { color: '#14b8a6', name: 'Teal' },
+                                    { color: '#3b82f6', name: 'Blue' },
+                                    { color: '#8b5cf6', name: 'Purple' },
+                                    { color: '#ec4899', name: 'Pink' },
+                                  ].map(({ color, name }) => (
+                                    <button
+                                      key={color}
+                                      type="button"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setEditColor(color);
+                                      }}
+                                      className={`w-6 h-6 rounded-full border-2 transition-all ${
+                                        editColor === color ? 'border-white ring-2 ring-discord-accent' : 'border-discord-lighter hover:scale-110'
+                                      }`}
+                                      style={{ backgroundColor: color }}
+                                      title={name}
+                                    />
+                                  ))}
+                                </div>
+                                <div className="flex gap-2">
+                                  <button
+                                    type="button"
+                                    onClick={async (e) => {
+                                      e.stopPropagation();
+                                      await handleSaveOAuthEdit(login.id, e);
+                                    }}
+                                    className="flex-1 px-2 py-1 text-xs bg-discord-accent text-white rounded hover:bg-opacity-80"
+                                  >
+                                    Save
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setEditingOAuth(null);
+                                    }}
+                                    className="px-2 py-1 text-xs bg-discord-lighter text-discord-text rounded hover:bg-discord-light"
+                                  >
+                                    Cancel
+                                  </button>
+                                </div>
                               </div>
-                            </div>
-                            <button
-                              onClick={(e) => handleDeleteSavedOAuthLogin(login.id, e)}
-                              className="p-1 opacity-0 group-hover:opacity-100 hover:bg-discord-danger rounded transition-all"
-                            >
-                              <svg className="w-4 h-4 text-discord-text-muted hover:text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                              </svg>
-                            </button>
+                            ) : (
+                              <div className="flex items-center justify-between group">
+                                <div className="flex items-center gap-3">
+                                  {login.color && (
+                                    <div 
+                                      className="w-3 h-3 rounded-full border border-discord-lighter flex-shrink-0" 
+                                      style={{ backgroundColor: login.color }}
+                                      title="Connection theme color"
+                                    />
+                                  )}
+                                  <div>
+                                    <p className="text-sm text-discord-text font-medium">{login.label}</p>
+                                    <p className="text-xs text-discord-text-muted">
+                                      {login.username} • {login.isSandbox ? 'Sandbox' : 'Production'}
+                                    </p>
+                                  </div>
+                                </div>
+                                <div className="flex gap-1">
+                                  <button
+                                    onClick={(e) => handleEditOAuth(login, e)}
+                                    className="p-1 opacity-0 group-hover:opacity-100 hover:bg-discord-lighter rounded transition-all"
+                                    title="Edit label and color"
+                                  >
+                                    <svg className="w-4 h-4 text-discord-text-muted hover:text-discord-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                    </svg>
+                                  </button>
+                                  <button
+                                    onClick={(e) => handleDeleteSavedOAuthLogin(login.id, e)}
+                                    className="p-1 opacity-0 group-hover:opacity-100 hover:bg-discord-danger rounded transition-all"
+                                    title="Delete saved login"
+                                  >
+                                    <svg className="w-4 h-4 text-discord-text-muted hover:text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                    </svg>
+                                  </button>
+                                </div>
+                              </div>
+                            )}
                           </div>
                         ))}
                       </div>
@@ -692,19 +961,35 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess, onOpenSettings })
                         placeholder="Label (e.g., My Dev Sandbox)"
                         className="input"
                       />
-                      <div className="flex items-center gap-3">
-                        <label htmlFor="oauth-color-picker" className="text-sm text-discord-text-muted">
+                      <div className="space-y-2">
+                        <label className="text-sm text-discord-text-muted">
                           Theme Color:
                         </label>
-                        <input
-                          id="oauth-color-picker"
-                          type="color"
-                          value={oauthColor}
-                          onChange={(e) => setOauthColor(e.target.value)}
-                          className="h-8 w-16 rounded border border-discord-lighter bg-discord-dark cursor-pointer"
-                          title="Choose a color for this connection"
-                        />
-                        <span className="text-xs text-discord-text-muted">Will appear in title bar when connected</span>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          {[
+                            { color: '#ef4444', name: 'Red' },
+                            { color: '#f97316', name: 'Orange' },
+                            { color: '#f59e0b', name: 'Amber' },
+                            { color: '#eab308', name: 'Yellow' },
+                            { color: '#84cc16', name: 'Lime' },
+                            { color: '#10b981', name: 'Green' },
+                            { color: '#14b8a6', name: 'Teal' },
+                            { color: '#3b82f6', name: 'Blue' },
+                            { color: '#8b5cf6', name: 'Purple' },
+                            { color: '#ec4899', name: 'Pink' },
+                          ].map(({ color: colorValue, name }) => (
+                            <button
+                              key={colorValue}
+                              type="button"
+                              onClick={() => setOauthColor(colorValue)}
+                              className={`w-8 h-8 rounded-full border-2 transition-all ${
+                                oauthColor === colorValue ? 'border-white ring-2 ring-discord-accent' : 'border-discord-lighter hover:scale-110'
+                              }`}
+                              style={{ backgroundColor: colorValue }}
+                              title={name}
+                            />
+                          ))}
+                        </div>
                       </div>
                     </>
                   )}

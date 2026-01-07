@@ -17,6 +17,7 @@ interface ResultsTableProps {
   sourceUsername?: string;
   executionStartTime?: number | null;
   onCancelQuery?: () => void;
+  themeColor?: string;
 }
 
 interface EditingCell {
@@ -46,6 +47,7 @@ const ResultsTable: React.FC<ResultsTableProps> = ({
   sourceUsername = '',
   executionStartTime = null,
   onCancelQuery,
+  themeColor,
 }) => {
   const { settings } = useSettings();
   const [sortColumn, setSortColumn] = useState<string | null>(null);
@@ -600,7 +602,11 @@ const ResultsTable: React.FC<ResultsTableProps> = ({
       {/* Table */}
       <div className="flex-1 overflow-auto">
         <table className={`data-table ${settings.compactResultsView ? 'data-table-compact' : ''}`}>
-          <thead>
+          <thead
+            style={themeColor ? {
+              background: `linear-gradient(to bottom, ${themeColor}18, ${themeColor}08)`,
+            } : undefined}
+          >
             <tr>
               <th className="w-10 text-center">
                 <input
