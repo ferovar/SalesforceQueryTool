@@ -1,6 +1,6 @@
 {
   "name": "salesforce-query-tool",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "description": "A modern Salesforce query tool - like SoqlX but better",
   "main": "dist/main/main.js",
   "author": "Your Name",
