@@ -14,7 +14,7 @@ type LoginMethod = 'credentials' | 'oauth';
 type Environment = 'production' | 'sandbox';
 
 const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess, onOpenSettings }) => {
-  const [loginMethod, setLoginMethod] = useState<LoginMethod>('credentials');
+  const [loginMethod, setLoginMethod] = useState<LoginMethod>('oauth');
   const [environment, setEnvironment] = useState<Environment>('production');
   const [label, setLabel] = useState('');
   const [color, setColor] = useState('#5865f2');
@@ -29,10 +29,8 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess, onOpenSettings })
   const [showSavedLogins, setShowSavedLogins] = useState(false);
   const [showSavedOAuthLogins, setShowSavedOAuthLogins] = useState(false);
   const [isUsingSavedLogin, setIsUsingSavedLogin] = useState(false);
-  const [oauthLabel, setOauthLabel] = useState('');
-  const [oauthColor, setOauthColor] = useState('#5865f2');
-  const [saveOAuthConnection, setSaveOAuthConnection] = useState(true);
   const [oauthClientId, setOauthClientId] = useState('');
+  const [useDefaultClientId, setUseDefaultClientId] = useState(true);
   const [showOAuthSetup, setShowOAuthSetup] = useState(false);
   const [editingCredential, setEditingCredential] = useState<string | null>(null);
   const [editingOAuth, setEditingOAuth] = useState<string | null>(null);
@@ -154,8 +152,8 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess, onOpenSettings })
   };
 
   const handleOAuthLogin = async () => {
-    if (!oauthClientId.trim()) {
-      setError('Please enter your Connected App Client ID');
+    if (!useDefaultClientId && !oauthClientId.trim()) {
+      setError('Please enter your Connected App Client ID or use the default');
       return;
     }
     
@@ -165,10 +163,9 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess, onOpenSettings })
     try {
       const result = await window.electronAPI.salesforce.loginOAuth({
         isSandbox: environment === 'sandbox',
-        saveConnection: saveOAuthConnection,
-        label: oauthLabel,
-        clientId: oauthClientId.trim(),
-        color: oauthColor,
+        saveConnection: false,
+        label: '',
+        clientId: useDefaultClientId ? undefined : oauthClientId.trim(),
       });
 
       if (result.success) {
@@ -889,115 +886,103 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess, onOpenSettings })
                 <div className="mb-4">
                   <div className="flex items-center justify-between mb-2">
                     <label className="block text-sm font-medium text-discord-text">
-                      Client ID (Consumer Key)
+                      Connected App
                     </label>
+                  </div>
+
+                  {/* Default / Custom toggle */}
+                  <div className="flex gap-2 mb-3">
                     <button
                       type="button"
-                      onClick={() => setShowOAuthSetup(!showOAuthSetup)}
-                      className="text-xs text-discord-accent hover:underline"
+                      onClick={() => setUseDefaultClientId(true)}
+                      className={`flex-1 py-2 px-3 rounded-lg text-xs font-medium transition-colors ${
+                        useDefaultClientId
+                          ? 'bg-discord-accent text-white'
+                          : 'bg-discord-lighter text-discord-text-muted hover:text-discord-text'
+                      }`}
                     >
-                      {showOAuthSetup ? 'Hide setup guide' : 'How to get this?'}
+                      Use Default (Recommended)
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setUseDefaultClientId(false)}
+                      className={`flex-1 py-2 px-3 rounded-lg text-xs font-medium transition-colors ${
+                        !useDefaultClientId
+                          ? 'bg-discord-accent text-white'
+                          : 'bg-discord-lighter text-discord-text-muted hover:text-discord-text'
+                      }`}
+                    >
+                      Custom Client ID
                     </button>
                   </div>
-                  
-                  {showOAuthSetup && (
-                    <div className="mb-3 p-3 bg-discord-lighter rounded-lg text-xs text-discord-text-muted space-y-2">
-                      <p className="font-medium text-discord-text">Create an External Client App in Salesforce:</p>
-                      <ol className="list-decimal list-inside space-y-1 ml-2">
-                        <li>Log into the org you want to connect to</li>
-                        <li>Go to Setup → search "External Client App Manager"</li>
-                        <li>Click "New External Client App"</li>
-                        <li>Enter a name (e.g., "Salesforce Query Tool")</li>
-                        <li>Under "Distribution State", select "Local"</li>
-                        <li>Click "Create" then go to the "OAuth Settings" tab</li>
-                        <li>Click "Add a Consumer Key & Secret" → "Add"</li>
-                        <li>Enable "User Authorization" flow</li>
-                        <li>Add Callback URL: <code className="bg-discord-darker px-1 rounded">http://localhost:1717/OauthRedirect</code></li>
-                        <li>Add scopes: "Manage user data via APIs (api)" and "Perform requests at any time (refresh_token, offline_access)"</li>
-                        <li>Copy the Consumer Key (Client ID)</li>
-                      </ol>
-                      <div className="mt-2 p-2 bg-discord-darker rounded border-l-2 border-discord-warning">
-                        <p className="text-discord-warning font-medium">Important:</p>
-                        <p>The Client ID is org-specific. You need to create an External Client App in <strong>each org</strong> you want to connect to via OAuth.</p>
-                      </div>
-                      <p className="text-discord-text-muted mt-2 italic">
-                        Tip: Username/Password login doesn't require this setup and works with any org.
-                      </p>
-                    </div>
-                  )}
-                  
-                  <input
-                    type="text"
-                    value={oauthClientId}
-                    onChange={(e) => setOauthClientId(e.target.value)}
-                    placeholder="3MVG9..."
-                    className="input font-mono text-sm"
-                  />
-                  <p className="text-xs text-discord-text-muted mt-1">
-                    Client ID from the org you want to connect to
-                  </p>
-                </div>
 
-                {/* Save Connection & Label */}
-                <div className="mb-4 space-y-3">
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={saveOAuthConnection}
-                      onChange={(e) => setSaveOAuthConnection(e.target.checked)}
-                      className="custom-checkbox"
-                    />
-                    <span className="text-sm text-discord-text-muted">
-                      Remember this connection
-                    </span>
-                  </label>
-                  
-                  {saveOAuthConnection && (
+                  {useDefaultClientId ? (
+                    <div className="p-3 bg-discord-lighter/50 rounded-lg border border-discord-lighter">
+                      <div className="flex items-start gap-2">
+                        <svg className="w-4 h-4 text-discord-success mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        <div>
+                          <p className="text-xs text-discord-text">Uses the Salesforce Platform CLI connected app — no setup required.</p>
+                          <p className="text-xs text-discord-text-muted mt-1">Works with any org. Your browser will open to authenticate.</p>
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
                     <>
                       <input
                         type="text"
-                        value={oauthLabel}
-                        onChange={(e) => setOauthLabel(e.target.value)}
-                        placeholder="Label (e.g., My Dev Sandbox)"
-                        className="input"
+                        value={oauthClientId}
+                        onChange={(e) => setOauthClientId(e.target.value)}
+                        placeholder="3MVG9..."
+                        className="input font-mono text-sm"
                       />
-                      <div className="space-y-2">
-                        <label className="text-sm text-discord-text-muted">
-                          Theme Color:
-                        </label>
-                        <div className="flex items-center gap-2 flex-wrap">
-                          {[
-                            { color: '#ef4444', name: 'Red' },
-                            { color: '#f97316', name: 'Orange' },
-                            { color: '#f59e0b', name: 'Amber' },
-                            { color: '#eab308', name: 'Yellow' },
-                            { color: '#84cc16', name: 'Lime' },
-                            { color: '#10b981', name: 'Green' },
-                            { color: '#14b8a6', name: 'Teal' },
-                            { color: '#3b82f6', name: 'Blue' },
-                            { color: '#8b5cf6', name: 'Purple' },
-                            { color: '#ec4899', name: 'Pink' },
-                          ].map(({ color: colorValue, name }) => (
-                            <button
-                              key={colorValue}
-                              type="button"
-                              onClick={() => setOauthColor(colorValue)}
-                              className={`w-8 h-8 rounded-full border-2 transition-all ${
-                                oauthColor === colorValue ? 'border-white ring-2 ring-discord-accent' : 'border-discord-lighter hover:scale-110'
-                              }`}
-                              style={{ backgroundColor: colorValue }}
-                              title={name}
-                            />
-                          ))}
-                        </div>
+                      <div className="mt-1 flex items-center justify-between">
+                        <p className="text-xs text-discord-text-muted">
+                          Consumer Key from your Connected App
+                        </p>
+                        <button
+                          type="button"
+                          onClick={() => setShowOAuthSetup(!showOAuthSetup)}
+                          className="text-xs text-discord-accent hover:underline"
+                        >
+                          {showOAuthSetup ? 'Hide guide' : 'Setup guide'}
+                        </button>
                       </div>
+                      
+                      {showOAuthSetup && (
+                        <div className="mt-2 p-3 bg-discord-lighter rounded-lg text-xs text-discord-text-muted space-y-2">
+                          <p className="font-medium text-discord-text">Create an External Client App in Salesforce:</p>
+                          <ol className="list-decimal list-inside space-y-1 ml-2">
+                            <li>Log into the org you want to connect to</li>
+                            <li>Go to Setup → search "External Client App Manager"</li>
+                            <li>Click "New External Client App"</li>
+                            <li>Enter a name (e.g., "Salesforce Query Tool")</li>
+                            <li>Under "Distribution State", select "Local"</li>
+                            <li>Click "Create" then go to the "OAuth Settings" tab</li>
+                            <li>Click "Add a Consumer Key & Secret" → "Add"</li>
+                            <li>Enable "User Authorization" flow</li>
+                            <li>Add Callback URL: <code className="bg-discord-darker px-1 rounded">http://localhost:1717/OauthRedirect</code></li>
+                            <li>Add scopes: "Manage user data via APIs (api)" and "Perform requests at any time (refresh_token, offline_access)"</li>
+                            <li>Copy the Consumer Key (Client ID)</li>
+                          </ol>
+                        </div>
+                      )}
                     </>
                   )}
                 </div>
 
+                {/* OAuth session note */}
+                <div className="mb-4 p-3 bg-discord-lighter/50 rounded-lg border border-discord-lighter">
+                  <p className="text-xs text-discord-text-muted">
+                    OAuth sessions are not saved. You'll re-authenticate each time you open the app.
+                    Use <span className="text-discord-text">Username & Password</span> login to save connections.
+                  </p>
+                </div>
+
                 <button
                   onClick={handleOAuthLogin}
-                  disabled={isLoading || !oauthClientId.trim()}
+                  disabled={isLoading || (!useDefaultClientId && !oauthClientId.trim())}
                   className="w-full btn btn-primary py-3 flex items-center justify-center gap-2"
                 >
                   {isLoading ? (

@@ -1,9 +1,11 @@
 import * as jsforce from 'jsforce';
-import * as http from 'http';
-import * as url from 'url';
-import { BrowserWindow } from 'electron';
-
-const OAUTH_CALLBACK_URL = 'http://localhost:1718/OauthRedirect'; // Different port for target org
+import { performOAuthFlow } from './oauthHelper';
+import {
+  DEFAULT_CLIENT_ID,
+  TARGET_OAUTH_PORT,
+  TARGET_CALLBACK_URL,
+  getLoginUrl,
+} from './oauthConstants';
 
 export interface OrgConnection {
   id: string;
@@ -35,200 +37,45 @@ export class OrgConnectionManager {
    */
   async connectWithOAuth(
     isSandbox: boolean,
-    clientId: string,
+    clientId: string | undefined,
     label: string
   ): Promise<{ id: string; data: ConnectResult }> {
-    const loginUrl = isSandbox
-      ? 'https://test.salesforce.com'
-      : 'https://login.salesforce.com';
+    const resolvedClientId = clientId?.trim() || DEFAULT_CLIENT_ID;
 
-    return new Promise((resolve, reject) => {
-      let server: http.Server | null = null;
-      let authWindow: BrowserWindow | null = null;
-      let resolved = false;
-
-      const cleanup = () => {
-        if (server) {
-          server.close();
-          server = null;
-        }
-        if (authWindow && !authWindow.isDestroyed()) {
-          authWindow.close();
-          authWindow = null;
-        }
-      };
-
-      // Create local HTTP server on a different port for target org
-      server = http.createServer(async (req, res) => {
-        try {
-          const parsedUrl = url.parse(req.url || '', true);
-
-          if (parsedUrl.pathname === '/OauthRedirect') {
-            if (parsedUrl.query.error) {
-              const errorDesc = parsedUrl.query.error_description || parsedUrl.query.error;
-              res.writeHead(200, { 'Content-Type': 'text/html' });
-              res.end(`
-                <html>
-                  <body style="font-family: sans-serif; text-align: center; padding-top: 50px; background: #1e1f22; color: #dbdee1;">
-                    <h2>Authentication Failed</h2>
-                    <p>${errorDesc}</p>
-                    <p>You can close this window.</p>
-                  </body>
-                </html>
-              `);
-              cleanup();
-              if (!resolved) {
-                resolved = true;
-                reject(new Error(String(errorDesc)));
-              }
-              return;
-            }
-
-            const code = parsedUrl.query.code as string;
-
-            if (code) {
-              res.writeHead(200, { 'Content-Type': 'text/html' });
-              res.end(`
-                <html>
-                  <body style="font-family: sans-serif; text-align: center; padding-top: 50px; background: #1e1f22; color: #dbdee1;">
-                    <h2>Target Org Connected!</h2>
-                    <p>You can close this window and return to the application.</p>
-                    <script>setTimeout(() => window.close(), 1500);</script>
-                  </body>
-                </html>
-              `);
-
-              try {
-                const tokenUrl = `${loginUrl}/services/oauth2/token`;
-                const tokenResponse = await fetch(tokenUrl, {
-                  method: 'POST',
-                  headers: {
-                    'Content-Type': 'application/x-www-form-urlencoded',
-                  },
-                  body: new URLSearchParams({
-                    grant_type: 'authorization_code',
-                    code: code,
-                    client_id: clientId,
-                    redirect_uri: OAUTH_CALLBACK_URL,
-                  }),
-                });
-
-                const tokenData = (await tokenResponse.json()) as {
-                  error?: string;
-                  error_description?: string;
-                  access_token?: string;
-                  refresh_token?: string;
-                  instance_url?: string;
-                };
-
-                if (tokenData.error) {
-                  cleanup();
-                  if (!resolved) {
-                    resolved = true;
-                    reject(new Error(tokenData.error_description || tokenData.error));
-                  }
-                  return;
-                }
-
-                const accessToken = tokenData.access_token!;
-                const instanceUrl = tokenData.instance_url!;
-
-                const connection = new jsforce.Connection({
-                  instanceUrl,
-                  accessToken,
-                });
-
-                const identity = await connection.identity();
-
-                // Generate unique ID for this connection
-                const connectionId = `target_${++this.connectionCounter}`;
-
-                // Store the connection
-                this.connections.set(connectionId, {
-                  id: connectionId,
-                  label: label || identity.username,
-                  instanceUrl,
-                  username: identity.username,
-                  isSandbox,
-                  connection,
-                });
-
-                cleanup();
-                if (!resolved) {
-                  resolved = true;
-                  resolve({
-                    id: connectionId,
-                    data: {
-                      userId: identity.user_id,
-                      organizationId: identity.organization_id,
-                      instanceUrl,
-                      username: identity.username,
-                    },
-                  });
-                }
-              } catch (tokenError: any) {
-                cleanup();
-                if (!resolved) {
-                  resolved = true;
-                  reject(new Error(tokenError.message || 'Failed to exchange authorization code'));
-                }
-              }
-            }
-          }
-        } catch (err: any) {
-          cleanup();
-          if (!resolved) {
-            resolved = true;
-            reject(err);
-          }
-        }
-      });
-
-      server.listen(1718, 'localhost', () => {
-        const oauthUrl = new URL(`${loginUrl}/services/oauth2/authorize`);
-        oauthUrl.searchParams.set('response_type', 'code');
-        oauthUrl.searchParams.set('client_id', clientId);
-        oauthUrl.searchParams.set('redirect_uri', OAUTH_CALLBACK_URL);
-        oauthUrl.searchParams.set('scope', 'api refresh_token');
-
-        authWindow = new BrowserWindow({
-          width: 600,
-          height: 700,
-          show: true,
-          title: 'Connect Target Org - Salesforce Login',
-          webPreferences: {
-            nodeIntegration: false,
-            contextIsolation: true,
-          },
-        });
-
-        authWindow.loadURL(oauthUrl.toString());
-
-        authWindow.on('closed', () => {
-          authWindow = null;
-          if (server) {
-            server.close();
-            server = null;
-          }
-          if (!resolved) {
-            resolved = true;
-            reject(new Error('Authentication window was closed'));
-          }
-        });
-      });
-
-      server.on('error', (err: any) => {
-        cleanup();
-        if (!resolved) {
-          resolved = true;
-          if (err.code === 'EADDRINUSE') {
-            reject(new Error('OAuth callback port 1718 is already in use. Please close any other Salesforce tools and try again.'));
-          } else {
-            reject(err);
-          }
-        }
-      });
+    const result = await performOAuthFlow({
+      isSandbox,
+      clientId: resolvedClientId,
+      callbackUrl: TARGET_CALLBACK_URL,
+      port: TARGET_OAUTH_PORT,
     });
+
+    const connection = new jsforce.Connection({
+      instanceUrl: result.instanceUrl,
+      accessToken: result.accessToken,
+    });
+
+    // Generate unique ID for this connection
+    const connectionId = `target_${++this.connectionCounter}`;
+
+    // Store the connection
+    this.connections.set(connectionId, {
+      id: connectionId,
+      label: label || result.username,
+      instanceUrl: result.instanceUrl,
+      username: result.username,
+      isSandbox,
+      connection,
+    });
+
+    return {
+      id: connectionId,
+      data: {
+        userId: result.userId,
+        organizationId: result.organizationId,
+        instanceUrl: result.instanceUrl,
+        username: result.username,
+      },
+    };
   }
 
   /**
@@ -281,9 +128,7 @@ export class OrgConnectionManager {
     isSandbox: boolean,
     label: string
   ): Promise<{ id: string; data: ConnectResult }> {
-    const loginUrl = isSandbox
-      ? 'https://test.salesforce.com'
-      : 'https://login.salesforce.com';
+    const loginUrl = getLoginUrl(isSandbox);
 
     const connection = new jsforce.Connection({
       loginUrl,

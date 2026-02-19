@@ -6,7 +6,6 @@ jest.mock('jsforce', () => {
     login: jest.fn(),
     logout: jest.fn(),
     query: jest.fn(),
-    queryAll: jest.fn(),
     queryMore: jest.fn(),
     sobject: jest.fn(),
     describe: jest.fn(),
@@ -29,6 +28,12 @@ jest.mock('electron', () => ({
   },
   shell: {
     openExternal: jest.fn(),
+    showItemInFolder: jest.fn(),
+  },
+  safeStorage: {
+    isEncryptionAvailable: jest.fn(() => false),
+    encryptString: jest.fn((str: string) => Buffer.from(str)),
+    decryptString: jest.fn((buf: Buffer) => buf.toString()),
   },
   BrowserWindow: jest.fn(),
 }));
@@ -143,8 +148,8 @@ describe('SalesforceService', () => {
       expect(mockConnection.queryMore).toHaveBeenCalledWith('/next-page');
     });
 
-    it('should use queryAll when includeDeleted is true', async () => {
-      mockConnection.queryAll.mockResolvedValue({
+    it('should use query with scanAll when includeDeleted is true', async () => {
+      mockConnection.query.mockResolvedValue({
         done: true,
         records: [{ Id: '001', Name: 'Deleted Account', IsDeleted: true }],
       });
@@ -155,8 +160,10 @@ describe('SalesforceService', () => {
       );
 
       expect(results).toHaveLength(1);
-      expect(mockConnection.queryAll).toHaveBeenCalled();
-      expect(mockConnection.query).not.toHaveBeenCalled();
+      expect(mockConnection.query).toHaveBeenCalledWith(
+        'SELECT Id, Name FROM Account',
+        { scanAll: true }
+      );
     });
 
     it('should throw error if not connected', async () => {

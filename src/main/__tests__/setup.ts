@@ -10,6 +10,12 @@ jest.mock('electron', () => ({
   },
   shell: {
     showItemInFolder: jest.fn(),
+    openExternal: jest.fn(),
+  },
+  safeStorage: {
+    isEncryptionAvailable: jest.fn(() => false),
+    encryptString: jest.fn((str: string) => Buffer.from(str)),
+    decryptString: jest.fn((buf: Buffer) => buf.toString()),
   },
   BrowserWindow: jest.fn(),
   ipcMain: {
@@ -33,7 +39,6 @@ jest.mock('jsforce', () => ({
     login: jest.fn(),
     logout: jest.fn(),
     query: jest.fn(),
-    queryAll: jest.fn(),
     queryMore: jest.fn(),
     sobject: jest.fn(() => ({
       update: jest.fn(),

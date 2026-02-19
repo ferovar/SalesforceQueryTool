@@ -1,11 +1,14 @@
 import * as jsforce from 'jsforce';
-import { dialog, shell, BrowserWindow } from 'electron';
+import { dialog, shell } from 'electron';
 import * as fs from 'fs';
 import * as path from 'path';
-import * as http from 'http';
-import * as url from 'url';
-
-const OAUTH_CALLBACK_URL = 'http://localhost:1717/OauthRedirect';
+import { performOAuthFlow, refreshAccessToken } from './oauthHelper';
+import {
+  DEFAULT_CLIENT_ID,
+  PRIMARY_OAUTH_PORT,
+  PRIMARY_CALLBACK_URL,
+  getLoginUrl,
+} from './oauthConstants';
 
 export interface SalesforceObject {
   name: string;
@@ -46,9 +49,7 @@ export class SalesforceService {
     securityToken: string,
     isSandbox: boolean
   ): Promise<{ userId: string; organizationId: string; instanceUrl: string }> {
-    const loginUrl = isSandbox
-      ? 'https://test.salesforce.com'
-      : 'https://login.salesforce.com';
+    const loginUrl = getLoginUrl(isSandbox);
 
     this.connection = new jsforce.Connection({ loginUrl });
 
@@ -63,204 +64,42 @@ export class SalesforceService {
     };
   }
 
-  async loginWithOAuth(isSandbox: boolean, clientId: string): Promise<{ userId: string; organizationId: string; instanceUrl: string; accessToken: string; refreshToken: string; username: string }> {
-    const loginUrl = isSandbox
-      ? 'https://test.salesforce.com'
-      : 'https://login.salesforce.com';
+  async loginWithOAuth(
+    isSandbox: boolean,
+    clientId?: string
+  ): Promise<{ userId: string; organizationId: string; instanceUrl: string; accessToken: string; refreshToken: string; username: string }> {
+    const resolvedClientId = clientId?.trim() || DEFAULT_CLIENT_ID;
 
-    return new Promise((resolve, reject) => {
-      let server: http.Server | null = null;
-      let authWindow: BrowserWindow | null = null;
-      let resolved = false;
-
-      const cleanup = () => {
-        if (server) {
-          server.close();
-          server = null;
-        }
-        if (authWindow && !authWindow.isDestroyed()) {
-          authWindow.close();
-          authWindow = null;
-        }
-      };
-
-      // Create local HTTP server to receive OAuth callback
-      server = http.createServer(async (req, res) => {
-        try {
-          const parsedUrl = url.parse(req.url || '', true);
-          
-          if (parsedUrl.pathname === '/OauthRedirect') {
-            // Check for error first
-            if (parsedUrl.query.error) {
-              const errorDesc = parsedUrl.query.error_description || parsedUrl.query.error;
-              res.writeHead(200, { 'Content-Type': 'text/html' });
-              res.end(`
-                <html>
-                  <body style="font-family: sans-serif; text-align: center; padding-top: 50px; background: #1e1f22; color: #dbdee1;">
-                    <h2>Authentication Failed</h2>
-                    <p>${errorDesc}</p>
-                    <p>You can close this window.</p>
-                  </body>
-                </html>
-              `);
-              cleanup();
-              if (!resolved) {
-                resolved = true;
-                reject(new Error(String(errorDesc)));
-              }
-              return;
-            }
-
-            // Get authorization code
-            const code = parsedUrl.query.code as string;
-            
-            if (code) {
-              res.writeHead(200, { 'Content-Type': 'text/html' });
-              res.end(`
-                <html>
-                  <body style="font-family: sans-serif; text-align: center; padding-top: 50px; background: #1e1f22; color: #dbdee1;">
-                    <h2>Authentication Successful!</h2>
-                    <p>You can close this window and return to the application.</p>
-                    <script>setTimeout(() => window.close(), 1500);</script>
-                  </body>
-                </html>
-              `);
-
-              // Exchange code for tokens
-              try {
-                const tokenUrl = `${loginUrl}/services/oauth2/token`;
-                const tokenResponse = await fetch(tokenUrl, {
-                  method: 'POST',
-                  headers: {
-                    'Content-Type': 'application/x-www-form-urlencoded',
-                  },
-                  body: new URLSearchParams({
-                    grant_type: 'authorization_code',
-                    code: code,
-                    client_id: clientId,
-                    redirect_uri: OAUTH_CALLBACK_URL,
-                  }),
-                });
-
-                const tokenData = await tokenResponse.json() as {
-                  error?: string;
-                  error_description?: string;
-                  access_token?: string;
-                  refresh_token?: string;
-                  instance_url?: string;
-                };
-
-                if (tokenData.error) {
-                  cleanup();
-                  if (!resolved) {
-                    resolved = true;
-                    reject(new Error(tokenData.error_description || tokenData.error));
-                  }
-                  return;
-                }
-
-                const accessToken = tokenData.access_token!;
-                const refreshToken = tokenData.refresh_token || '';
-                const instanceUrl = tokenData.instance_url!;
-
-                // Connect and get identity
-                this.connection = new jsforce.Connection({
-                  instanceUrl,
-                  accessToken,
-                });
-
-                const identity = await this.connection.identity();
-                
-                cleanup();
-                if (!resolved) {
-                  resolved = true;
-                  resolve({
-                    userId: identity.user_id,
-                    organizationId: identity.organization_id,
-                    instanceUrl,
-                    accessToken,
-                    refreshToken,
-                    username: identity.username,
-                  });
-                }
-              } catch (tokenError: any) {
-                cleanup();
-                if (!resolved) {
-                  resolved = true;
-                  reject(new Error(tokenError.message || 'Failed to exchange authorization code'));
-                }
-              }
-            } else {
-              res.writeHead(400, { 'Content-Type': 'text/html' });
-              res.end(`
-                <html>
-                  <body style="font-family: sans-serif; text-align: center; padding-top: 50px; background: #1e1f22; color: #dbdee1;">
-                    <h2>Authentication Failed</h2>
-                    <p>No authorization code received.</p>
-                  </body>
-                </html>
-              `);
-            }
-          }
-        } catch (err: any) {
-          cleanup();
-          if (!resolved) {
-            resolved = true;
-            reject(err);
-          }
-        }
-      });
-
-      server.listen(1717, 'localhost', () => {
-        // Build OAuth URL with authorization code flow
-        const oauthUrl = new URL(`${loginUrl}/services/oauth2/authorize`);
-        oauthUrl.searchParams.set('response_type', 'code');
-        oauthUrl.searchParams.set('client_id', clientId);
-        oauthUrl.searchParams.set('redirect_uri', OAUTH_CALLBACK_URL);
-        oauthUrl.searchParams.set('scope', 'api refresh_token');
-
-        // Open in a BrowserWindow
-        authWindow = new BrowserWindow({
-          width: 600,
-          height: 700,
-          show: true,
-          title: 'Salesforce Login',
-          webPreferences: {
-            nodeIntegration: false,
-            contextIsolation: true,
-          },
-        });
-
-        authWindow.loadURL(oauthUrl.toString());
-
-        authWindow.on('closed', () => {
-          authWindow = null;
-          if (server) {
-            server.close();
-            server = null;
-          }
-          if (!resolved) {
-            resolved = true;
-            reject(new Error('Authentication window was closed'));
-          }
-        });
-      });
-
-      server.on('error', (err: any) => {
-        cleanup();
-        if (!resolved) {
-          resolved = true;
-          if (err.code === 'EADDRINUSE') {
-            reject(new Error('OAuth callback port 1717 is already in use. Please close any other Salesforce tools and try again.'));
-          } else {
-            reject(err);
-          }
-        }
-      });
+    const result = await performOAuthFlow({
+      isSandbox,
+      clientId: resolvedClientId,
+      callbackUrl: PRIMARY_CALLBACK_URL,
+      port: PRIMARY_OAUTH_PORT,
     });
+
+    // Create a jsforce connection for subsequent API calls
+    this.connection = new jsforce.Connection({
+      instanceUrl: result.instanceUrl,
+      accessToken: result.accessToken,
+    });
+
+    return {
+      userId: result.userId,
+      organizationId: result.organizationId,
+      instanceUrl: result.instanceUrl,
+      accessToken: result.accessToken,
+      refreshToken: result.refreshToken,
+      username: result.username,
+    };
   }
 
-  async loginWithSavedOAuth(instanceUrl: string, accessToken: string): Promise<{ userId: string; organizationId: string; instanceUrl: string; username: string }> {
+  async loginWithSavedOAuth(
+    instanceUrl: string,
+    accessToken: string,
+    refreshToken?: string,
+    clientId?: string,
+    isSandbox?: boolean
+  ): Promise<{ userId: string; organizationId: string; instanceUrl: string; username: string; accessToken?: string }> {
     this.connection = new jsforce.Connection({
       instanceUrl,
       accessToken,
@@ -275,6 +114,37 @@ export class SalesforceService {
         username: identity.username,
       };
     } catch (error: any) {
+      // Access token expired — attempt refresh if we have a refresh token
+      if (refreshToken && clientId) {
+        try {
+          const refreshed = await refreshAccessToken(
+            instanceUrl,
+            refreshToken,
+            clientId,
+            isSandbox ?? false
+          );
+
+          // Rebuild connection with the fresh access token
+          this.connection = new jsforce.Connection({
+            instanceUrl,
+            accessToken: refreshed.accessToken,
+          });
+
+          const identity = await this.connection.identity();
+          return {
+            userId: identity.user_id,
+            organizationId: identity.organization_id,
+            instanceUrl,
+            username: identity.username,
+            // Return the new access token so the caller can persist it
+            accessToken: refreshed.accessToken,
+          };
+        } catch (refreshError: any) {
+          this.connection = null;
+          throw new Error('OAuth session expired and refresh failed. Please log in again.');
+        }
+      }
+
       this.connection = null;
       throw new Error('OAuth session expired. Please log in again.');
     }
@@ -345,9 +215,9 @@ export class SalesforceService {
 
     let results: any[] = [];
     
-    const queryMethod = includeDeleted ? 'queryAll' : 'query';
-    
-    let queryResult = await (this.connection as any)[queryMethod](query);
+    let queryResult = includeDeleted
+      ? await this.connection.query(query, { scanAll: true })
+      : await this.connection.query(query);
     results = [...queryResult.records];
 
     // Handle pagination

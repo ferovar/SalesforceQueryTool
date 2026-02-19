@@ -13,9 +13,11 @@ export interface ElectronAPI {
       securityToken: string;
       isSandbox: boolean;
       saveCredentials: boolean;
+      label?: string;
+      color?: string;
     }) => Promise<{ success: boolean; data?: any; error?: string }>;
     
-    loginOAuth: (options: { isSandbox: boolean; saveConnection: boolean; label: string; clientId: string }) => Promise<{ success: boolean; data?: any; error?: string }>;
+    loginOAuth: (options: { isSandbox: boolean; saveConnection: boolean; label: string; clientId?: string }) => Promise<{ success: boolean; data?: any; error?: string }>;
     
     loginWithSavedOAuth: (id: string) => Promise<{ success: boolean; data?: any; error?: string }>;
     
@@ -107,7 +109,7 @@ export interface ElectronAPI {
   };
 
   migration: {
-    connectTargetOrg: (options: { isSandbox: boolean; label: string; clientId: string }) => 
+    connectTargetOrg: (options: { isSandbox: boolean; label: string; clientId?: string }) => 
       Promise<{ success: boolean; data?: { id: string; data: { userId: string; organizationId: string; instanceUrl: string; username: string } }; error?: string }>;
     
     connectWithSavedOAuth: (savedOAuthId: string) =>
@@ -190,6 +192,7 @@ export interface StoredCredentials {
   password: string;
   securityToken: string;
   isSandbox: boolean;
+  color?: string;
 }
 
 export interface SavedLogin {
@@ -197,6 +200,7 @@ export interface SavedLogin {
   username: string;
   isSandbox: boolean;
   lastUsed: string;
+  color?: string;
 }
 
 export interface SavedOAuthLogin {
@@ -206,6 +210,7 @@ export interface SavedOAuthLogin {
   isSandbox: boolean;
   lastUsed: string;
   loginType: 'oauth';
+  color?: string;
 }
 
 export interface SavedQuery {

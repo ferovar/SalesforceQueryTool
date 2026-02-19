@@ -187,21 +187,9 @@ ipcMain.handle('salesforce:login', async (_event, credentials: {
   }
 });
 
-ipcMain.handle('salesforce:loginOAuth', async (_event, options: { isSandbox: boolean; saveConnection: boolean; label: string; clientId: string }) => {
+ipcMain.handle('salesforce:loginOAuth', async (_event, options: { isSandbox: boolean; clientId?: string }) => {
   try {
     const result = await salesforceService.loginWithOAuth(options.isSandbox, options.clientId);
-    
-    if (options.saveConnection) {
-      credentialsStore.saveOAuthLogin({
-        label: options.label || result.username,
-        instanceUrl: result.instanceUrl,
-        accessToken: result.accessToken,
-        refreshToken: result.refreshToken,
-        isSandbox: options.isSandbox,
-        username: result.username,
-        clientId: options.clientId,
-      });
-    }
     
     return { success: true, data: result };
   } catch (error: any) {
@@ -216,7 +204,19 @@ ipcMain.handle('salesforce:loginWithSavedOAuth', async (_event, id: string) => {
       return { success: false, error: 'Saved OAuth connection not found' };
     }
     
-    const result = await salesforceService.loginWithSavedOAuth(savedOAuth.instanceUrl, savedOAuth.accessToken);
+    const result = await salesforceService.loginWithSavedOAuth(
+      savedOAuth.instanceUrl,
+      savedOAuth.accessToken,
+      savedOAuth.refreshToken,
+      savedOAuth.clientId,
+      savedOAuth.isSandbox
+    );
+
+    // If a new access token was returned (token was refreshed), persist it
+    if (result.accessToken) {
+      credentialsStore.updateOAuthTokens(id, result.accessToken);
+    }
+
     return { 
       success: true, 
       data: { 
@@ -374,7 +374,7 @@ ipcMain.handle('history:delete', (_event, entryId: string) => {
 });
 
 // IPC Handlers for data migration
-ipcMain.handle('migration:connectTargetOrg', async (_event, options: { isSandbox: boolean; label: string; clientId: string }) => {
+ipcMain.handle('migration:connectTargetOrg', async (_event, options: { isSandbox: boolean; label: string; clientId?: string }) => {
   try {
     const result = await orgConnectionManager.connectWithOAuth(options.isSandbox, options.clientId, options.label);
     return { success: true, data: result };
