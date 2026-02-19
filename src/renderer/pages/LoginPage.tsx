@@ -29,9 +29,6 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess, onOpenSettings })
   const [showSavedLogins, setShowSavedLogins] = useState(false);
   const [showSavedOAuthLogins, setShowSavedOAuthLogins] = useState(false);
   const [isUsingSavedLogin, setIsUsingSavedLogin] = useState(false);
-  const [oauthLabel, setOauthLabel] = useState('');
-  const [oauthColor, setOauthColor] = useState('#5865f2');
-  const [saveOAuthConnection, setSaveOAuthConnection] = useState(true);
   const [oauthClientId, setOauthClientId] = useState('');
   const [useDefaultClientId, setUseDefaultClientId] = useState(true);
   const [showOAuthSetup, setShowOAuthSetup] = useState(false);
@@ -166,10 +163,9 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess, onOpenSettings })
     try {
       const result = await window.electronAPI.salesforce.loginOAuth({
         isSandbox: environment === 'sandbox',
-        saveConnection: saveOAuthConnection,
-        label: oauthLabel,
+        saveConnection: false,
+        label: '',
         clientId: useDefaultClientId ? undefined : oauthClientId.trim(),
-        color: oauthColor,
       });
 
       if (result.success) {
@@ -976,61 +972,12 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess, onOpenSettings })
                   )}
                 </div>
 
-                {/* Save Connection & Label */}
-                <div className="mb-4 space-y-3">
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={saveOAuthConnection}
-                      onChange={(e) => setSaveOAuthConnection(e.target.checked)}
-                      className="custom-checkbox"
-                    />
-                    <span className="text-sm text-discord-text-muted">
-                      Remember this connection
-                    </span>
-                  </label>
-                  
-                  {saveOAuthConnection && (
-                    <>
-                      <input
-                        type="text"
-                        value={oauthLabel}
-                        onChange={(e) => setOauthLabel(e.target.value)}
-                        placeholder="Label (e.g., My Dev Sandbox)"
-                        className="input"
-                      />
-                      <div className="space-y-2">
-                        <label className="text-sm text-discord-text-muted">
-                          Theme Color:
-                        </label>
-                        <div className="flex items-center gap-2 flex-wrap">
-                          {[
-                            { color: '#ef4444', name: 'Red' },
-                            { color: '#f97316', name: 'Orange' },
-                            { color: '#f59e0b', name: 'Amber' },
-                            { color: '#eab308', name: 'Yellow' },
-                            { color: '#84cc16', name: 'Lime' },
-                            { color: '#10b981', name: 'Green' },
-                            { color: '#14b8a6', name: 'Teal' },
-                            { color: '#3b82f6', name: 'Blue' },
-                            { color: '#8b5cf6', name: 'Purple' },
-                            { color: '#ec4899', name: 'Pink' },
-                          ].map(({ color: colorValue, name }) => (
-                            <button
-                              key={colorValue}
-                              type="button"
-                              onClick={() => setOauthColor(colorValue)}
-                              className={`w-8 h-8 rounded-full border-2 transition-all ${
-                                oauthColor === colorValue ? 'border-white ring-2 ring-discord-accent' : 'border-discord-lighter hover:scale-110'
-                              }`}
-                              style={{ backgroundColor: colorValue }}
-                              title={name}
-                            />
-                          ))}
-                        </div>
-                      </div>
-                    </>
-                  )}
+                {/* OAuth session note */}
+                <div className="mb-4 p-3 bg-discord-lighter/50 rounded-lg border border-discord-lighter">
+                  <p className="text-xs text-discord-text-muted">
+                    OAuth sessions are not saved. You'll re-authenticate each time you open the app.
+                    Use <span className="text-discord-text">Username & Password</span> login to save connections.
+                  </p>
                 </div>
 
                 <button

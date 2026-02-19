@@ -54,12 +54,20 @@ const SUCCESS_HTML = `
   </body>
 </html>`;
 
+function escapeHtml(str: string): string {
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
 function errorHtml(message: string): string {
   return `
 <html>
   <body style="font-family: sans-serif; text-align: center; padding-top: 50px; background: #1e1f22; color: #dbdee1;">
     <h2>Authentication Failed</h2>
-    <p>${message}</p>
+    <p>${escapeHtml(message)}</p>
     <p>You can close this tab.</p>
   </body>
 </html>`;

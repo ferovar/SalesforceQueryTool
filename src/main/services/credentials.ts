@@ -1,5 +1,6 @@
 import Store from 'electron-store';
 import { safeStorage } from 'electron';
+import * as crypto from 'crypto';
 
 interface StoredCredentials {
   label: string;
@@ -43,6 +44,7 @@ interface StoreSchema {
 
 export class CredentialsStore {
   private store: Store<StoreSchema>;
+  private legacyEncryptionKey: string | null = null;
 
   constructor() {
     this.store = new Store<StoreSchema>({
@@ -53,6 +55,13 @@ export class CredentialsStore {
         savedOAuthLogins: [],
       },
     });
+
+    // Read legacy AES-256-CBC key so we can still decrypt old saved credentials.
+    // Old versions stored the key as a 64-char hex string in the same JSON file.
+    const legacyKey = (this.store as any).get('encryptionKey');
+    if (legacyKey && typeof legacyKey === 'string' && legacyKey.length === 64) {
+      this.legacyEncryptionKey = legacyKey;
+    }
   }
 
   private encrypt(text: string): string {
@@ -68,6 +77,27 @@ export class CredentialsStore {
       // Fallback decode
       return Buffer.from(text.slice(4), 'base64').toString('utf8');
     }
+
+    // Legacy AES-256-CBC format: "iv_hex:ciphertext_hex"
+    // Old versions stored credentials this way. Detect by checking for
+    // a 32-char hex IV followed by a colon and more hex characters.
+    if (this.legacyEncryptionKey && /^[0-9a-f]{32}:[0-9a-f]+$/i.test(text)) {
+      try {
+        const [ivHex, encrypted] = text.split(':');
+        const iv = Buffer.from(ivHex, 'hex');
+        const decipher = crypto.createDecipheriv(
+          'aes-256-cbc',
+          Buffer.from(this.legacyEncryptionKey, 'hex'),
+          iv
+        );
+        let decrypted = decipher.update(encrypted, 'hex', 'utf8');
+        decrypted += decipher.final('utf8');
+        return decrypted;
+      } catch {
+        // Corrupted legacy data — fall through to safeStorage attempt
+      }
+    }
+
     return safeStorage.decryptString(Buffer.from(text, 'base64'));
   }
 

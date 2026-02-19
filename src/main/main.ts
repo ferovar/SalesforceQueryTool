@@ -187,23 +187,11 @@ ipcMain.handle('salesforce:login', async (_event, credentials: {
   }
 });
 
-ipcMain.handle('salesforce:loginOAuth', async (_event, options: { isSandbox: boolean; saveConnection: boolean; label: string; clientId?: string; color?: string }) => {
+ipcMain.handle('salesforce:loginOAuth', async (_event, options: { isSandbox: boolean; clientId?: string }) => {
   try {
     const result = await salesforceService.loginWithOAuth(options.isSandbox, options.clientId);
     
-    if (options.saveConnection) {
-      credentialsStore.saveOAuthLogin({
-        label: options.label || result.username,
-        instanceUrl: result.instanceUrl,
-        accessToken: result.accessToken,
-        refreshToken: result.refreshToken,
-        isSandbox: options.isSandbox,
-        username: result.username,
-        clientId: options.clientId?.trim() || 'PlatformCLI',
-      });
-    }
-    
-    return { success: true, data: { ...result, color: options.color } };
+    return { success: true, data: result };
   } catch (error: any) {
     return { success: false, error: error.message };
   }
