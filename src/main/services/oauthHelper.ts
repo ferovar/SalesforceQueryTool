@@ -10,7 +10,7 @@
 import * as crypto from 'crypto';
 import * as http from 'http';
 import * as url from 'url';
-import { BrowserWindow } from 'electron';
+import { BrowserWindow, shell, Menu } from 'electron';
 import {
   OAUTH_SCOPES,
   AUTH_SERVER_TIMEOUT_MS,
@@ -240,17 +240,36 @@ export function performOAuthFlow(options: OAuthOptions): Promise<OAuthResult> {
       oauthUrl.searchParams.set('code_challenge_method', 'S256');
 
       // Open in an embedded BrowserWindow for a self-contained experience
+      const host = new URL(loginUrl).host; // login.salesforce.com or test.salesforce.com
+      const windowTitle = isSandbox
+        ? `Salesforce Login — ${host} (Sandbox)`
+        : `Salesforce Login — ${host}`;
+
       authWindow = new BrowserWindow({
         width: 600,
         height: 720,
         show: true,
-        title: isSandbox ? 'Salesforce Login (Sandbox)' : 'Salesforce Login',
-        autoHideMenuBar: true,
+        title: windowTitle,
         webPreferences: {
           nodeIntegration: false,
           contextIsolation: true,
         },
       });
+
+      // Prevent Salesforce's <title> tag from overriding our window title
+      authWindow.on('page-title-updated', (e) => e.preventDefault());
+
+      // Menu with "Open in Browser" so user can use 1Password / saved creds
+      const authMenu = Menu.buildFromTemplate([
+        {
+          label: 'Open in Browser',
+          click: () => {
+            const currentUrl = authWindow?.webContents.getURL();
+            if (currentUrl) shell.openExternal(currentUrl);
+          },
+        },
+      ]);
+      authWindow.setMenu(authMenu);
 
       authWindow.loadURL(oauthUrl.toString());
 
