@@ -1,8 +1,8 @@
 /**
- * Shared OAuth utility — Authorization Code + PKCE via system browser.
+ * Shared OAuth utility — Authorization Code + PKCE via embedded BrowserWindow.
  *
- * Replaces the old BrowserWindow approach with shell.openExternal(),
- * adds PKCE (code_verifier / code_challenge), and includes a server timeout.
+ * Opens a controlled Salesforce login window with PKCE (S256), auto-closes on
+ * success, and includes a server timeout. Keeps the app self-contained.
  *
  * Used by both primary login (port 1717) and target-org login (port 1718).
  */
@@ -10,7 +10,7 @@
 import * as crypto from 'crypto';
 import * as http from 'http';
 import * as url from 'url';
-import { shell } from 'electron';
+import { BrowserWindow } from 'electron';
 import {
   OAUTH_SCOPES,
   AUTH_SERVER_TIMEOUT_MS,
@@ -50,7 +50,7 @@ const SUCCESS_HTML = `
 <html>
   <body style="font-family: sans-serif; text-align: center; padding-top: 50px; background: #1e1f22; color: #dbdee1;">
     <h2>✅ Authentication Successful!</h2>
-    <p>You can close this tab and return to the application.</p>
+    <p>This window will close automatically…</p>
   </body>
 </html>`;
 
@@ -68,7 +68,7 @@ function errorHtml(message: string): string {
   <body style="font-family: sans-serif; text-align: center; padding-top: 50px; background: #1e1f22; color: #dbdee1;">
     <h2>Authentication Failed</h2>
     <p>${escapeHtml(message)}</p>
-    <p>You can close this tab.</p>
+    <p>You can close this window.</p>
   </body>
 </html>`;
 }
@@ -80,10 +80,10 @@ function errorHtml(message: string): string {
  *
  * 1. Generates PKCE code_verifier + code_challenge
  * 2. Starts a local HTTP server on `options.port` for the callback
- * 3. Opens the Salesforce authorize URL in the system browser
+ * 3. Opens a BrowserWindow with the Salesforce authorize URL
  * 4. Receives the auth code, exchanges it for tokens (with code_verifier)
  * 5. Calls /services/oauth2/userinfo to get identity
- * 6. Returns the tokens + identity
+ * 6. Auto-closes the window and returns the tokens + identity
  */
 export function performOAuthFlow(options: OAuthOptions): Promise<OAuthResult> {
   const { isSandbox, clientId, callbackUrl, port } = options;
@@ -93,6 +93,7 @@ export function performOAuthFlow(options: OAuthOptions): Promise<OAuthResult> {
 
   return new Promise((resolve, reject) => {
     let server: http.Server | null = null;
+    let authWindow: BrowserWindow | null = null;
     let resolved = false;
     let timeoutHandle: ReturnType<typeof setTimeout> | null = null;
 
@@ -104,6 +105,10 @@ export function performOAuthFlow(options: OAuthOptions): Promise<OAuthResult> {
       if (server) {
         server.close();
         server = null;
+      }
+      if (authWindow && !authWindow.isDestroyed()) {
+        authWindow.close();
+        authWindow = null;
       }
     };
 
@@ -191,9 +196,23 @@ export function performOAuthFlow(options: OAuthOptions): Promise<OAuthResult> {
           preferred_username: string;
         };
 
-        cleanup();
+        // Resolve immediately so the app can continue
         if (!resolved) {
           resolved = true;
+
+          // Close the server & timeout right away
+          if (timeoutHandle) { clearTimeout(timeoutHandle); timeoutHandle = null; }
+          if (server) { server.close(); server = null; }
+
+          // Auto-close the auth window after a brief delay
+          // so the user sees the success message
+          setTimeout(() => {
+            if (authWindow && !authWindow.isDestroyed()) {
+              authWindow.close();
+              authWindow = null;
+            }
+          }, 1500);
+
           resolve({
             accessToken,
             refreshToken,
@@ -220,8 +239,34 @@ export function performOAuthFlow(options: OAuthOptions): Promise<OAuthResult> {
       oauthUrl.searchParams.set('code_challenge', codeChallenge);
       oauthUrl.searchParams.set('code_challenge_method', 'S256');
 
-      // Open in system browser (not BrowserWindow)
-      shell.openExternal(oauthUrl.toString());
+      // Open in an embedded BrowserWindow for a self-contained experience
+      authWindow = new BrowserWindow({
+        width: 600,
+        height: 720,
+        show: true,
+        title: isSandbox ? 'Salesforce Login (Sandbox)' : 'Salesforce Login',
+        autoHideMenuBar: true,
+        webPreferences: {
+          nodeIntegration: false,
+          contextIsolation: true,
+        },
+      });
+
+      authWindow.loadURL(oauthUrl.toString());
+
+      authWindow.on('closed', () => {
+        authWindow = null;
+        // If the window was closed before auth completed, reject
+        if (!resolved) {
+          // Give the server handler a moment to finish if the close races
+          // with the callback (user closes window right as redirect fires)
+          setTimeout(() => {
+            if (!resolved) {
+              fail(new Error('Authentication window was closed.'));
+            }
+          }, 500);
+        }
+      });
     });
 
     server.on('error', (err: any) => {
