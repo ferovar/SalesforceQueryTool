@@ -15,7 +15,7 @@ export interface ElectronAPI {
       saveCredentials: boolean;
     }) => Promise<{ success: boolean; data?: any; error?: string }>;
     
-    loginOAuth: (options: { isSandbox: boolean; saveConnection: boolean; label: string; clientId: string }) => Promise<{ success: boolean; data?: any; error?: string }>;
+    loginOAuth: (options: { isSandbox: boolean; saveConnection: boolean; label: string; clientId?: string; color?: string }) => Promise<{ success: boolean; data?: any; error?: string }>;
     
     loginWithSavedOAuth: (id: string) => Promise<{ success: boolean; data?: any; error?: string }>;
     
@@ -107,7 +107,7 @@ export interface ElectronAPI {
   };
 
   migration: {
-    connectTargetOrg: (options: { isSandbox: boolean; label: string; clientId: string }) => 
+    connectTargetOrg: (options: { isSandbox: boolean; label: string; clientId?: string }) => 
       Promise<{ success: boolean; data?: { id: string; data: { userId: string; organizationId: string; instanceUrl: string; username: string } }; error?: string }>;
     
     connectWithSavedOAuth: (savedOAuthId: string) =>

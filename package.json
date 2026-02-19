@@ -26,14 +26,13 @@
   },
   "dependencies": {
     "electron-store": "^8.1.0",
-    "jsforce": "^1.11.1"
+    "jsforce": "^3.6.0"
   },
   "devDependencies": {
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.1",
     "@testing-library/user-event": "^14.6.1",
     "@types/jest": "^30.0.0",
-    "@types/jsforce": "^1.11.6",
     "@types/node": "^20.10.0",
     "@types/react": "^18.2.42",
     "@types/react-dom": "^18.2.17",

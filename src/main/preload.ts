@@ -23,7 +23,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
       saveCredentials: boolean;
     }) => ipcRenderer.invoke('salesforce:login', credentials),
     
-    loginOAuth: (options: { isSandbox: boolean; saveConnection: boolean; label: string; clientId: string }) => 
+    loginOAuth: (options: { isSandbox: boolean; saveConnection: boolean; label: string; clientId?: string; color?: string }) => 
       ipcRenderer.invoke('salesforce:loginOAuth', options),
     
     loginWithSavedOAuth: (id: string) => ipcRenderer.invoke('salesforce:loginWithSavedOAuth', id),
@@ -125,7 +125,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   // Data migration operations
   migration: {
-    connectTargetOrg: (options: { isSandbox: boolean; label: string; clientId: string }) =>
+    connectTargetOrg: (options: { isSandbox: boolean; label: string; clientId?: string }) =>
       ipcRenderer.invoke('migration:connectTargetOrg', options),
     
     connectWithSavedOAuth: (savedOAuthId: string) =>

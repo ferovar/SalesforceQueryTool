@@ -1,5 +1,5 @@
 import Store from 'electron-store';
-import * as crypto from 'crypto';
+import { safeStorage } from 'electron';
 
 interface StoredCredentials {
   label: string;
@@ -39,12 +39,10 @@ interface StoreSchema {
   lastCredentials: StoredCredentials | null;
   savedLogins: SavedLogin[];
   savedOAuthLogins: SavedOAuthLogin[];
-  encryptionKey: string;
 }
 
 export class CredentialsStore {
   private store: Store<StoreSchema>;
-  private encryptionKey: string;
 
   constructor() {
     this.store = new Store<StoreSchema>({
@@ -53,43 +51,24 @@ export class CredentialsStore {
         lastCredentials: null,
         savedLogins: [],
         savedOAuthLogins: [],
-        encryptionKey: '',
       },
     });
-
-    // Get or create encryption key
-    let key = this.store.get('encryptionKey');
-    if (!key) {
-      key = crypto.randomBytes(32).toString('hex');
-      this.store.set('encryptionKey', key);
-    }
-    this.encryptionKey = key;
   }
 
   private encrypt(text: string): string {
-    const iv = crypto.randomBytes(16);
-    const cipher = crypto.createCipheriv(
-      'aes-256-cbc',
-      Buffer.from(this.encryptionKey, 'hex'),
-      iv
-    );
-    let encrypted = cipher.update(text, 'utf8', 'hex');
-    encrypted += cipher.final('hex');
-    return iv.toString('hex') + ':' + encrypted;
+    if (!safeStorage.isEncryptionAvailable()) {
+      // Fallback: base64 encode when OS keychain is unavailable (rare)
+      return 'b64:' + Buffer.from(text, 'utf8').toString('base64');
+    }
+    return safeStorage.encryptString(text).toString('base64');
   }
 
   private decrypt(text: string): string {
-    const parts = text.split(':');
-    const iv = Buffer.from(parts[0], 'hex');
-    const encrypted = parts[1];
-    const decipher = crypto.createDecipheriv(
-      'aes-256-cbc',
-      Buffer.from(this.encryptionKey, 'hex'),
-      iv
-    );
-    let decrypted = decipher.update(encrypted, 'hex', 'utf8');
-    decrypted += decipher.final('utf8');
-    return decrypted;
+    if (text.startsWith('b64:')) {
+      // Fallback decode
+      return Buffer.from(text.slice(4), 'base64').toString('utf8');
+    }
+    return safeStorage.decryptString(Buffer.from(text, 'base64'));
   }
 
   saveCredentials(credentials: StoredCredentials): void {
@@ -177,7 +156,7 @@ export class CredentialsStore {
     }));
   }
 
-  getOAuthLoginById(id: string): { instanceUrl: string; accessToken: string; refreshToken: string; isSandbox: boolean; username: string; color?: string; label?: string } | null {
+  getOAuthLoginById(id: string): { instanceUrl: string; accessToken: string; refreshToken: string; isSandbox: boolean; username: string; clientId: string; color?: string; label?: string } | null {
     const savedOAuthLogins = this.store.get('savedOAuthLogins') || [];
     const login = savedOAuthLogins.find((l) => l.id === id);
     
@@ -190,6 +169,7 @@ export class CredentialsStore {
         refreshToken: login.refreshToken ? this.decrypt(login.refreshToken) : '',
         isSandbox: login.isSandbox,
         username: login.username,
+        clientId: login.clientId,
         color: login.color,
         label: login.label,
       };
@@ -280,6 +260,21 @@ export class CredentialsStore {
     const updated = savedOAuthLogins.map((login) => {
       if (login.id === id) {
         return { ...login, label, color };
+      }
+      return login;
+    });
+    this.store.set('savedOAuthLogins', updated);
+  }
+
+  updateOAuthTokens(id: string, accessToken: string, refreshToken?: string): void {
+    const savedOAuthLogins = this.store.get('savedOAuthLogins') || [];
+    const updated = savedOAuthLogins.map((login) => {
+      if (login.id === id) {
+        const result = { ...login, accessToken: this.encrypt(accessToken) };
+        if (refreshToken) {
+          result.refreshToken = this.encrypt(refreshToken);
+        }
+        return result;
       }
       return login;
     });
