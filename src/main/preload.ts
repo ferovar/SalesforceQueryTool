@@ -161,4 +161,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
     getExternalIdFields: (objectName: string) =>
       ipcRenderer.invoke('migration:getExternalIdFields', objectName),
   },
+
+  // Application settings (persisted via electron-store)
+  settings: {
+    get: () => ipcRenderer.invoke('settings:get'),
+    save: (settings: Record<string, unknown>) => ipcRenderer.invoke('settings:save', settings),
+  },
 });

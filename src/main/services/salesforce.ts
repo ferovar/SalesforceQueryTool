@@ -9,6 +9,18 @@ import {
   PRIMARY_CALLBACK_URL,
   getLoginUrl,
 } from './oauthConstants';
+import {
+  escapeSoqlLikeString,
+  buildIdInClause,
+  isValidSalesforceId,
+  validateLimit,
+  validateDatetime,
+} from './soqlUtils';
+
+/** Delay before executing Apex to let the trace flag activate (ms) */
+const TRACE_FLAG_SETTLE_MS = 500;
+/** Delay after Apex execution before fetching debug logs (ms) */
+const LOG_AVAILABILITY_DELAY_MS = 1000;
 
 export interface SalesforceObject {
   name: string;
@@ -391,7 +403,7 @@ export class SalesforceService {
       try {
         // Check for existing trace flag for this user
         const existingFlags = await toolingApi.query<{ Id: string; ExpirationDate: string }>(
-          `SELECT Id, ExpirationDate FROM TraceFlag WHERE TracedEntityId = '${userId}' AND LogType = 'USER_DEBUG' LIMIT 1`
+          `SELECT Id, ExpirationDate FROM TraceFlag WHERE TracedEntityId = ${isValidSalesforceId(userId) ? `'${userId}'` : "''"} AND LogType = 'USER_DEBUG' LIMIT 1`
         );
 
         const now = new Date();
@@ -426,8 +438,8 @@ export class SalesforceService {
       }
     }
 
-    // Small delay to ensure trace flag is active
-    await new Promise(resolve => setTimeout(resolve, 500));
+    // Small delay to ensure trace flag is active before execution
+    await new Promise(resolve => setTimeout(resolve, TRACE_FLAG_SETTLE_MS));
 
     // Record time before execution to find the right log
     const executionStartTime = new Date().toISOString();
@@ -462,8 +474,8 @@ export class SalesforceService {
       column?: number;
     };
 
-    // Wait a bit for log to be available
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    // Wait for log to become available in the system
+    await new Promise(resolve => setTimeout(resolve, LOG_AVAILABILITY_DELAY_MS));
 
     // Try to get the debug log
     let debugLog: string | undefined;
@@ -550,7 +562,8 @@ export class SalesforceService {
     }
 
     const toolingApi = this.connection.tooling;
-    
+    const safeLimit = validateLimit(limit);
+
     const result = await toolingApi.query<{
       Id: string;
       LogLength: number;
@@ -559,10 +572,10 @@ export class SalesforceService {
       DurationMilliseconds: number;
       StartTime: string;
     }>(
-      `SELECT Id, LogLength, Operation, Status, DurationMilliseconds, StartTime 
-       FROM ApexLog 
-       ORDER BY StartTime DESC 
-       LIMIT ${limit}`
+      `SELECT Id, LogLength, Operation, Status, DurationMilliseconds, StartTime
+       FROM ApexLog
+       ORDER BY StartTime DESC
+       LIMIT ${safeLimit}`
     );
 
     return (result.records || []).map(log => ({
@@ -578,6 +591,10 @@ export class SalesforceService {
   async getDebugLogBody(logId: string): Promise<string> {
     if (!this.connection) {
       throw new Error('Not connected to Salesforce');
+    }
+
+    if (!isValidSalesforceId(logId)) {
+      throw new Error('Invalid log ID');
     }
 
     const instanceUrl = this.connection.instanceUrl;
@@ -616,13 +633,13 @@ export class SalesforceService {
       throw new Error('Not connected to Salesforce');
     }
 
-    const escapedTerm = searchTerm.replace(/'/g, "\\'");
+    const escapedTerm = escapeSoqlLikeString(searchTerm);
     const query = `
-      SELECT Id, Name, Username, Email, IsActive, Profile.Name 
-      FROM User 
+      SELECT Id, Name, Username, Email, IsActive, Profile.Name
+      FROM User
       WHERE (Name LIKE '%${escapedTerm}%' OR Username LIKE '%${escapedTerm}%' OR Email LIKE '%${escapedTerm}%')
       AND IsActive = true
-      ORDER BY Name 
+      ORDER BY Name
       LIMIT 20
     `;
 
@@ -688,7 +705,7 @@ export class SalesforceService {
 
     // Check for existing trace flag for this user
     const existingTraceFlag = await toolingApi.query<{ Id: string; ExpirationDate: string }>(
-      `SELECT Id, ExpirationDate FROM TraceFlag WHERE TracedEntityId = '${userId}' AND LogType = 'USER_DEBUG' LIMIT 1`
+      `SELECT Id, ExpirationDate FROM TraceFlag WHERE TracedEntityId = ${isValidSalesforceId(userId) ? `'${userId}'` : "''"} AND LogType = 'USER_DEBUG' LIMIT 1`
     );
 
     const now = new Date();
@@ -775,13 +792,16 @@ export class SalesforceService {
     let userMap: Record<string, string> = {};
 
     if (tracedEntityIds.length > 0) {
-      const userQuery = await this.connection.query<{ Id: string; Name: string }>(
-        `SELECT Id, Name FROM User WHERE Id IN ('${tracedEntityIds.join("','")}')`
-      );
-      userMap = (userQuery.records || []).reduce((acc, user) => {
-        acc[user.Id] = user.Name;
-        return acc;
-      }, {} as Record<string, string>);
+      const validIds = tracedEntityIds.filter(id => isValidSalesforceId(id));
+      if (validIds.length > 0) {
+        const userQuery = await this.connection.query<{ Id: string; Name: string }>(
+          `SELECT Id, Name FROM User WHERE Id IN ${buildIdInClause(validIds)}`
+        );
+        userMap = (userQuery.records || []).reduce((acc, user) => {
+          acc[user.Id] = user.Name;
+          return acc;
+        }, {} as Record<string, string>);
+      }
     }
 
     return (result.records || []).map(tf => ({
@@ -812,18 +832,24 @@ export class SalesforceService {
     }
 
     const toolingApi = this.connection.tooling;
-    
+
+    if (!isValidSalesforceId(userId)) {
+      throw new Error('Invalid user ID');
+    }
+
+    const safeLimit = validateLimit(limit);
+
     let query = `
-      SELECT Id, LogLength, Operation, Status, DurationMilliseconds, StartTime, Request 
-      FROM ApexLog 
+      SELECT Id, LogLength, Operation, Status, DurationMilliseconds, StartTime, Request
+      FROM ApexLog
       WHERE LogUserId = '${userId}'
     `;
 
     if (sinceTime) {
-      query += ` AND StartTime > ${sinceTime}`;
+      query += ` AND StartTime > ${validateDatetime(sinceTime)}`;
     }
 
-    query += ` ORDER BY StartTime DESC LIMIT ${limit}`;
+    query += ` ORDER BY StartTime DESC LIMIT ${safeLimit}`;
 
     const result = await toolingApi.query<{
       Id: string;

@@ -1,34 +1,15 @@
 import React, { useState, useEffect } from 'react';
+import type { AppSettings, ThemeType } from '../types/electron.d';
 
-export type ThemeType = 'nature' | 'starfield';
-
-export interface AppSettings {
-  // Performance
-  showPerformanceMonitor: boolean;
-  
-  // Safety
-  preventProductionEdits: boolean;
-  disableInlineEditing: boolean;
-  disableMigrationFeature: boolean;
-  
-  // Query defaults
-  defaultQueryLimit: number; // 0 means no limit
-  autoSaveToHistory: boolean;
-  excludedFields: string[]; // Fields to exclude from SELECT * queries
-  
-  // UI preferences
-  showRelationshipFields: boolean;
-  compactResultsView: boolean;
-  showRecentObjectsFirst: boolean;
-  theme: ThemeType;
-}
+// Re-export for backwards compatibility with existing imports
+export type { AppSettings, ThemeType };
 
 export const defaultSettings: AppSettings = {
   showPerformanceMonitor: false,
   preventProductionEdits: true,
   disableInlineEditing: false,
   disableMigrationFeature: false,
-  defaultQueryLimit: 0, // 0 means no limit
+  defaultQueryLimit: 0,
   autoSaveToHistory: true,
   excludedFields: [
     'SystemModstamp',
@@ -40,7 +21,7 @@ export const defaultSettings: AppSettings = {
   showRelationshipFields: true,
   compactResultsView: false,
   showRecentObjectsFirst: true,
-  theme: 'nature', // Default to nature theme
+  theme: 'nature',
 };
 
 interface SettingsModalProps {

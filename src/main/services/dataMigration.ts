@@ -1,4 +1,8 @@
 import * as jsforce from 'jsforce';
+import { buildIdInClause, isValidSalesforceId, validateApiName, buildSoqlValue } from './soqlUtils';
+
+/** Max IDs per SOQL IN-clause batch */
+const QUERY_BATCH_SIZE = 200;
 
 export interface FieldRelationship {
   fieldName: string;
@@ -135,13 +139,13 @@ export class DataMigrationService {
       .map((f: any) => f.name);
     
     // Query in batches to avoid query length limits
-    const batchSize = 200;
     const allRecords: Record<string, any>[] = [];
-    
-    for (let i = 0; i < recordIds.length; i += batchSize) {
-      const batchIds = recordIds.slice(i, i + batchSize);
-      const query = `SELECT ${fieldsToQuery.join(', ')} FROM ${objectName} WHERE Id IN ('${batchIds.join("','")}')`;
-      const result = await this.sourceConnection.query(query);
+
+    for (let i = 0; i < recordIds.length; i += QUERY_BATCH_SIZE) {
+      const batchIds = recordIds.slice(i, i + QUERY_BATCH_SIZE);
+      const validIds = batchIds.filter(id => isValidSalesforceId(id));
+      if (validIds.length === 0) continue;
+      const query = `SELECT ${fieldsToQuery.join(', ')} FROM ${objectName} WHERE Id IN ${buildIdInClause(validIds)}`;      const result = await this.sourceConnection.query(query);
       allRecords.push(...(result.records as Record<string, any>[]));
     }
     
@@ -203,7 +207,7 @@ export class DataMigrationService {
             .map((f: any) => f.name)
             .join(', ');
 
-          const relatedQuery = `SELECT ${relatedFields} FROM ${relConfig.referenceTo} WHERE Id = '${fieldValue}'`;
+          const relatedQuery = `SELECT ${relatedFields} FROM ${relConfig.referenceTo} WHERE Id = ${isValidSalesforceId(fieldValue) ? `'${fieldValue}'` : "''"}`;
           const relatedResult = await this.sourceConnection.query(relatedQuery);
 
           if (relatedResult.records.length > 0) {

@@ -66,15 +66,18 @@ export class CredentialsStore {
 
   private encrypt(text: string): string {
     if (!safeStorage.isEncryptionAvailable()) {
-      // Fallback: base64 encode when OS keychain is unavailable (rare)
-      return 'b64:' + Buffer.from(text, 'utf8').toString('base64');
+      throw new Error(
+        'OS credential encryption is not available. Credentials cannot be saved securely. ' +
+        'Please ensure your operating system keychain service is running.'
+      );
     }
     return safeStorage.encryptString(text).toString('base64');
   }
 
   private decrypt(text: string): string {
     if (text.startsWith('b64:')) {
-      // Fallback decode
+      // Legacy fallback decode — old versions stored credentials as base64.
+      // Decrypt them so they can be re-encrypted with safeStorage on next save.
       return Buffer.from(text.slice(4), 'base64').toString('utf8');
     }
 

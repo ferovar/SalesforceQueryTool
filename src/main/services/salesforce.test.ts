@@ -296,7 +296,7 @@ describe('SalesforceService', () => {
         done: true,
         records: [
           {
-            Id: '005abc123',
+            Id: '005000000000abc',
             Name: 'John Doe',
             Username: 'john@example.com',
             Email: 'john@example.com',
@@ -310,7 +310,7 @@ describe('SalesforceService', () => {
 
       expect(results).toHaveLength(1);
       expect(results[0]).toEqual({
-        id: '005abc123',
+        id: '005000000000abc',
         name: 'John Doe',
         username: 'john@example.com',
         email: 'john@example.com',
@@ -327,7 +327,7 @@ describe('SalesforceService', () => {
         done: true,
         records: [
           {
-            Id: '005abc123',
+            Id: '005000000000abc',
             Name: 'John Doe',
             Username: 'john@example.com',
             Email: 'john@example.com',
@@ -408,7 +408,7 @@ describe('SalesforceService', () => {
       };
       mockTooling.sobject.mockReturnValueOnce(mockTraceFlagSobject);
 
-      const result = await service.createUserTraceFlag('005abc123', 60);
+      const result = await service.createUserTraceFlag('005000000000abc', 60);
 
       expect(result.traceFlagId).toBe('7tf123');
       expect(mockDebugLevelSobject.create).toHaveBeenCalledWith({
@@ -449,7 +449,7 @@ describe('SalesforceService', () => {
       };
       mockTooling.sobject.mockReturnValueOnce(mockTraceFlagSobject);
 
-      await service.createUserTraceFlag('005abc123', 30);
+      await service.createUserTraceFlag('005000000000abc', 30);
 
       // Should not try to create debug level
       expect(mockTooling.sobject).toHaveBeenCalledTimes(1); // Only for trace flag
@@ -477,7 +477,7 @@ describe('SalesforceService', () => {
       };
       mockTooling.sobject.mockReturnValueOnce(mockTraceFlagSobject);
 
-      const result = await service.createUserTraceFlag('005abc123', 120);
+      const result = await service.createUserTraceFlag('005000000000abc', 120);
 
       expect(result.traceFlagId).toBe('7tf456');
       expect(mockTraceFlagSobject.update).toHaveBeenCalled();
@@ -487,7 +487,7 @@ describe('SalesforceService', () => {
       const newService = new SalesforceService();
 
       await expect(
-        newService.createUserTraceFlag('005abc123', 60)
+        newService.createUserTraceFlag('005000000000abc', 60)
       ).rejects.toThrow('Not connected to Salesforce');
     });
   });
@@ -545,8 +545,8 @@ describe('SalesforceService', () => {
         done: true,
         records: [
           {
-            Id: '7tf123',
-            TracedEntityId: '005abc123',
+            Id: '7tf000000000123',
+            TracedEntityId: '005000000000abc',
             LogType: 'USER_DEBUG',
             ExpirationDate: '2024-12-31T23:59:59Z',
             DebugLevel: { DeveloperName: 'SFQueryToolUserDebug' },
@@ -559,7 +559,7 @@ describe('SalesforceService', () => {
         done: true,
         records: [
           {
-            Id: '005abc123',
+            Id: '005000000000abc',
             Name: 'John Doe',
           },
         ],
@@ -569,8 +569,8 @@ describe('SalesforceService', () => {
 
       expect(results).toHaveLength(1);
       expect(results[0]).toEqual({
-        id: '7tf123',
-        tracedEntityId: '005abc123',
+        id: '7tf000000000123',
+        tracedEntityId: '005000000000abc',
         tracedEntityName: 'John Doe',
         logType: 'USER_DEBUG',
         expirationDate: '2024-12-31T23:59:59Z',
@@ -626,7 +626,7 @@ describe('SalesforceService', () => {
         ],
       });
 
-      const results = await service.getDebugLogsForUser('005abc123');
+      const results = await service.getDebugLogsForUser('005000000000abc');
 
       expect(results).toHaveLength(1);
       expect(results[0]).toEqual({
@@ -647,7 +647,7 @@ describe('SalesforceService', () => {
       });
 
       const sinceTime = '2024-01-01T12:00:00Z';
-      await service.getDebugLogsForUser('005abc123', sinceTime);
+      await service.getDebugLogsForUser('005000000000abc', sinceTime);
 
       expect(mockTooling.query).toHaveBeenCalledWith(
         expect.stringContaining(`StartTime > ${sinceTime}`)
@@ -660,7 +660,7 @@ describe('SalesforceService', () => {
         records: [],
       });
 
-      const results = await service.getDebugLogsForUser('005abc123');
+      const results = await service.getDebugLogsForUser('005000000000abc');
 
       expect(results).toHaveLength(0);
     });
@@ -669,7 +669,7 @@ describe('SalesforceService', () => {
       const newService = new SalesforceService();
 
       await expect(
-        newService.getDebugLogsForUser('005abc123')
+        newService.getDebugLogsForUser('005000000000abc')
       ).rejects.toThrow('Not connected to Salesforce');
     });
   });

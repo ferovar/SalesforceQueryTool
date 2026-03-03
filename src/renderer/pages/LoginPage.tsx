@@ -220,10 +220,8 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess, onOpenSettings })
 
   const handleSaveCredentialEdit = async (username: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    console.log('Saving credential edit:', username, editLabel, editColor);
     try {
-      const result = await window.electronAPI.credentials.updateLoginMetadata(username, editLabel, editColor);
-      console.log('Update result:', result);
+      await window.electronAPI.credentials.updateLoginMetadata(username, editLabel, editColor);
       setEditingCredential(null);
       await loadSavedLogins();
     } catch (err) {
@@ -241,10 +239,8 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess, onOpenSettings })
 
   const handleSaveOAuthEdit = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    console.log('Saving OAuth edit:', id, editLabel, editColor);
     try {
-      const result = await window.electronAPI.credentials.updateOAuthMetadata(id, editLabel, editColor);
-      console.log('Update result:', result);
+      await window.electronAPI.credentials.updateOAuthMetadata(id, editLabel, editColor);
       setEditingOAuth(null);
       await loadSavedOAuthLogins();
     } catch (err) {

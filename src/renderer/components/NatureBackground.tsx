@@ -4,19 +4,11 @@ const WavesBackground: React.FC = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
-    console.log('WavesBackground mounted and useEffect running');
     const canvas = canvasRef.current;
-    if (!canvas) {
-      console.log('WavesBackground: canvas is null');
-      return;
-    }
+    if (!canvas) return;
 
     const ctx = canvas.getContext('2d');
-    if (!ctx) {
-      console.log('WavesBackground: context is null');
-      return;
-    }
-    console.log('WavesBackground: canvas and context ready, starting animation');
+    if (!ctx) return;
 
     let animationId: number;
     let time = 0;
@@ -91,19 +83,11 @@ const NatureBackground: React.FC = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
-    console.log('NatureBackground mounted and useEffect running');
     const canvas = canvasRef.current;
-    if (!canvas) {
-      console.log('NatureBackground: canvas is null');
-      return;
-    }
+    if (!canvas) return;
 
     const ctx = canvas.getContext('2d');
-    if (!ctx) {
-      console.log('NatureBackground: context is null');
-      return;
-    }
-    console.log('NatureBackground: canvas and context ready, starting animation');
+    if (!ctx) return;
 
     let animationId: number;
 

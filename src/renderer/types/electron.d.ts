@@ -149,11 +149,17 @@ export interface ElectronAPI {
     
     getChildRelationships: (objectName: string) => Promise<{ success: boolean; data?: ChildRelationship[]; error?: string }>;
     
-    getExternalIdFields: (objectName: string) => Promise<{ 
-      success: boolean; 
-      data?: ExternalIdField[]; 
-      error?: string 
+    getExternalIdFields: (objectName: string) => Promise<{
+      success: boolean;
+      data?: ExternalIdField[];
+      error?: string
     }>;
+  };
+
+  // Application settings (persisted via electron-store)
+  settings: {
+    get: () => Promise<AppSettings>;
+    save: (settings: AppSettings) => Promise<void>;
   };
 }
 
@@ -183,7 +189,7 @@ export interface ObjectDescription {
   name: string;
   label: string;
   fields: SalesforceField[];
-  childRelationships: any[];
+  childRelationships: ChildRelationship[];
 }
 
 export interface StoredCredentials {
@@ -369,6 +375,23 @@ export interface UserDebugLog {
   durationMs: number;
   startTime: string;
   request: string;
+}
+
+// Settings types
+export type ThemeType = 'nature' | 'starfield';
+
+export interface AppSettings {
+  showPerformanceMonitor: boolean;
+  preventProductionEdits: boolean;
+  disableInlineEditing: boolean;
+  disableMigrationFeature: boolean;
+  defaultQueryLimit: number;
+  autoSaveToHistory: boolean;
+  excludedFields: string[];
+  showRelationshipFields: boolean;
+  compactResultsView: boolean;
+  showRecentObjectsFirst: boolean;
+  theme: ThemeType;
 }
 
 declare global {

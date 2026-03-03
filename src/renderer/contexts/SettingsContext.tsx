@@ -1,5 +1,5 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import type { AppSettings } from '../components/SettingsModal';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
+import type { AppSettings } from '../types/electron.d';
 import { defaultSettings } from '../components/SettingsModal';
 
 interface SettingsContextType {
@@ -12,30 +12,35 @@ interface SettingsContextType {
 
 const SettingsContext = createContext<SettingsContextType | undefined>(undefined);
 
-const SETTINGS_STORAGE_KEY = 'salesforce-query-tool-settings';
-
 export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [settings, setSettings] = useState<AppSettings>(() => {
-    // Load from localStorage on init
-    try {
-      const saved = localStorage.getItem(SETTINGS_STORAGE_KEY);
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        // Ensure all default properties exist, especially new ones like theme
-        return { ...defaultSettings, ...parsed };
-      }
-    } catch (e) {
-      console.error('Error loading settings:', e);
-    }
-    return defaultSettings;
-  });
-  
+  const [settings, setSettings] = useState<AppSettings>(defaultSettings);
   const [isProduction, setIsProduction] = useState<boolean | undefined>(undefined);
+  const initialized = useRef(false);
 
-  // Save settings to localStorage whenever they change
+  // Load settings from electron-store on mount
   useEffect(() => {
+    (async () => {
+      try {
+        if (window.electronAPI?.settings) {
+          const saved = await window.electronAPI.settings.get();
+          if (saved) {
+            setSettings(prev => ({ ...prev, ...saved }));
+          }
+        }
+      } catch (e) {
+        console.error('Error loading settings:', e);
+      }
+      initialized.current = true;
+    })();
+  }, []);
+
+  // Persist settings to electron-store whenever they change (after initial load)
+  useEffect(() => {
+    if (!initialized.current) return;
     try {
-      localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(settings));
+      if (window.electronAPI?.settings) {
+        window.electronAPI.settings.save(settings);
+      }
     } catch (e) {
       console.error('Error saving settings:', e);
     }
@@ -69,10 +74,10 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   }, []);
 
   return (
-    <SettingsContext.Provider 
-      value={{ 
-        settings, 
-        updateSettings, 
+    <SettingsContext.Provider
+      value={{
+        settings,
+        updateSettings,
         togglePerformanceMonitor,
         isProduction,
         setIsProduction,

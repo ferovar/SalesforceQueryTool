@@ -1,30 +1,11 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import type { DebugUser, UserDebugLog } from '../types/electron.d';
+import { parseDebugLog, getLogLineColor } from '../utils/logParser';
+import type { ParsedLogLine, LogLineType } from '../utils/logParser';
 
 interface UserDebuggingTabProps {
   // Optional callback when a log is viewed (for potential future use)
   onViewLog?: (logBody: string) => void;
-}
-
-// Log line types for color coding (reused from main modal)
-type LogLineType = 
-  | 'debug' 
-  | 'error' 
-  | 'warning' 
-  | 'info' 
-  | 'user-debug' 
-  | 'system' 
-  | 'dml' 
-  | 'soql'
-  | 'limit'
-  | 'default';
-
-interface ParsedLogLine {
-  timestamp: string;
-  type: LogLineType;
-  category: string;
-  content: string;
-  raw: string;
 }
 
 const DURATION_OPTIONS = [
@@ -94,70 +75,13 @@ const UserDebuggingTab: React.FC<UserDebuggingTabProps> = () => {
     return () => stopPolling();
   }, [isMonitoring, selectedUser, activeTraceFlag]);
 
-  // Parse debug log
-  const parseDebugLog = useCallback((log: string): ParsedLogLine[] => {
-    const lines = log.split('\n');
-    return lines.map(line => {
-      const raw = line;
-      let type: LogLineType = 'default';
-      let timestamp = '';
-      let category = '';
-      let content = line;
-
-      const match = line.match(/^(\d{2}:\d{2}:\d{2}\.\d+)\s*\((\d+)\)\|([^|]+)\|(.*)$/);
-      if (match) {
-        timestamp = match[1];
-        category = match[3];
-        content = match[4];
-
-        if (category === 'USER_DEBUG') {
-          type = 'user-debug';
-        } else if (category.includes('ERROR') || category.includes('FATAL') || category.includes('EXCEPTION')) {
-          type = 'error';
-        } else if (category.includes('WARN')) {
-          type = 'warning';
-        } else if (category === 'SYSTEM_MODE_ENTER' || category === 'SYSTEM_MODE_EXIT' || category.includes('SYSTEM')) {
-          type = 'system';
-        } else if (category.includes('DML') || category.includes('INSERT') || category.includes('UPDATE') || category.includes('DELETE')) {
-          type = 'dml';
-        } else if (category.includes('SOQL') || category.includes('QUERY')) {
-          type = 'soql';
-        } else if (category.includes('LIMIT') || category.includes('CUMULATIVE')) {
-          type = 'limit';
-        } else if (category === 'CODE_UNIT_STARTED' || category === 'CODE_UNIT_FINISHED') {
-          type = 'info';
-        }
-      } else if (line.includes('DEBUG|') || line.includes('System.debug')) {
-        type = 'user-debug';
-      } else if (line.toLowerCase().includes('error') || line.toLowerCase().includes('exception')) {
-        type = 'error';
-      }
-
-      return { timestamp, type, category, content, raw };
-    });
-  }, []);
-
   useEffect(() => {
     if (logBody) {
       setParsedLog(parseDebugLog(logBody));
     } else {
       setParsedLog([]);
     }
-  }, [logBody, parseDebugLog]);
-
-  const getLogLineColor = (type: LogLineType): string => {
-    switch (type) {
-      case 'user-debug': return 'text-cyan-400';
-      case 'error': return 'text-red-400';
-      case 'warning': return 'text-yellow-400';
-      case 'info': return 'text-blue-400';
-      case 'dml': return 'text-purple-400';
-      case 'soql': return 'text-green-400';
-      case 'limit': return 'text-orange-400';
-      case 'system': return 'text-gray-500';
-      default: return 'text-discord-text-muted';
-    }
-  };
+  }, [logBody]);
 
   const handleUserSearch = async (term: string) => {
     setUserSearch(term);

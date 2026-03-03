@@ -1,9 +1,21 @@
 /**
  * OAuth constants for Salesforce Query Tool.
- * 
+ *
  * The default Connected App consumer key follows the same pattern as
  * Salesforce CLI — it auto-installs in any org on first auth.
- * Users can override with their own Client ID for tighter security policies.
+ *
+ * For production deployments, it is recommended to register a dedicated
+ * Connected App in your Salesforce org rather than relying on the shared
+ * PlatformCLI key. This gives you:
+ *   - Control over OAuth scopes and IP restrictions
+ *   - Visibility into connected app usage via Setup > Connected Apps
+ *   - The ability to revoke access independently of Salesforce CLI
+ *
+ * To use a custom Connected App:
+ *   1. In Salesforce Setup, create a Connected App with OAuth enabled
+ *   2. Set the callback URL to http://localhost:1717/OauthRedirect
+ *   3. Select the "api" and "refresh_token" scopes
+ *   4. Users can enter their custom Client ID in the OAuth login form
  */
 
 // Salesforce CLI's well-known default Connected App consumer key.
