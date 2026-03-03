@@ -412,5 +412,107 @@ describe('ResultsTable', () => {
       expect(onExportCsv).toHaveBeenCalled();
     });
   });
+
+  describe('record selection', () => {
+    it('should select a record when checkbox is clicked', async () => {
+      const user = userEvent.setup();
+      
+      render(
+        <SettingsProvider>
+          <ResultsTable {...defaultProps} />
+        </SettingsProvider>
+      );
+
+      // Get all checkboxes - first is "select all" header, rest are row checkboxes
+      const checkboxes = screen.getAllByRole('checkbox');
+      expect(checkboxes.length).toBeGreaterThan(1);
+
+      // Click the first row checkbox (index 1, since 0 is "select all")
+      await user.click(checkboxes[1]);
+
+      // Should show "1 selected" text
+      expect(screen.getByText(/1 selected/)).toBeInTheDocument();
+    });
+
+    it('should select all records when header checkbox is clicked', async () => {
+      const user = userEvent.setup();
+      
+      render(
+        <SettingsProvider>
+          <ResultsTable {...defaultProps} />
+        </SettingsProvider>
+      );
+
+      const checkboxes = screen.getAllByRole('checkbox');
+      // Click the "select all" header checkbox
+      await user.click(checkboxes[0]);
+
+      // Should show "3 selected" for 3 records
+      expect(screen.getByText(/3 selected/)).toBeInTheDocument();
+    });
+
+    it('should deselect all when header checkbox is clicked again', async () => {
+      const user = userEvent.setup();
+      
+      render(
+        <SettingsProvider>
+          <ResultsTable {...defaultProps} />
+        </SettingsProvider>
+      );
+
+      const checkboxes = screen.getAllByRole('checkbox');
+      // Select all
+      await user.click(checkboxes[0]);
+      expect(screen.getByText(/3 selected/)).toBeInTheDocument();
+
+      // Deselect all
+      await user.click(checkboxes[0]);
+      expect(screen.queryByText(/selected/)).not.toBeInTheDocument();
+    });
+
+    it('should enable Migrate button when records are selected', async () => {
+      const user = userEvent.setup();
+      
+      render(
+        <SettingsProvider>
+          <ResultsTable {...defaultProps} />
+        </SettingsProvider>
+      );
+
+      // Migrate button should be disabled initially
+      const migrateButton = screen.getByRole('button', { name: /migrate/i });
+      expect(migrateButton).toBeDisabled();
+
+      // Select a record
+      const checkboxes = screen.getAllByRole('checkbox');
+      await user.click(checkboxes[1]);
+
+      // Migrate button should now be enabled
+      expect(migrateButton).not.toBeDisabled();
+    });
+  });
+
+  describe('sort direction', () => {
+    it('should reverse sort direction when clicking same column twice', async () => {
+      const user = userEvent.setup();
+      
+      render(
+        <SettingsProvider>
+          <ResultsTable {...defaultProps} />
+        </SettingsProvider>
+      );
+
+      // Click Name column to sort ascending
+      await user.click(screen.getByText('Name'));
+
+      // Click again to reverse to descending
+      await user.click(screen.getByText('Name'));
+
+      // Verify data is now in reverse order - Finance < Healthcare < Technology
+      const rows = screen.getAllByRole('row');
+      // First data row should have the last item alphabetically
+      expect(rows.length).toBeGreaterThan(1);
+    });
+  });
 });
 

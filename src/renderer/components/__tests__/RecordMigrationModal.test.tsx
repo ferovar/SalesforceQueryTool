@@ -14,6 +14,7 @@ const mockElectronAPI = {
     analyzeRecords: jest.fn(),
     executeMigration: jest.fn(),
     getChildRelationships: jest.fn(),
+    getExternalIdFields: jest.fn(),
   },
   credentials: {
     getSavedOAuthLogins: jest.fn(),

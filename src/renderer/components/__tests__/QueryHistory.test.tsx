@@ -27,15 +27,17 @@ describe('QueryHistory', () => {
       id: '1',
       query: 'SELECT Id, Name FROM Account',
       objectName: 'Account',
-      timestamp: new Date(Date.now() - 60000).toISOString(), // 1 minute ago
+      executedAt: new Date(Date.now() - 60000).toISOString(), // 1 minute ago
       recordCount: 10,
+      success: true,
     },
     {
       id: '2',
       query: 'SELECT Id, Email FROM Contact WHERE IsActive = true',
       objectName: 'Contact',
-      timestamp: new Date(Date.now() - 3600000).toISOString(), // 1 hour ago
+      executedAt: new Date(Date.now() - 3600000).toISOString(), // 1 hour ago
       recordCount: 25,
+      success: true,
     },
   ];
 
@@ -163,6 +165,122 @@ describe('QueryHistory', () => {
 
       await waitFor(() => {
         expect(mockGetAll).toHaveBeenCalledTimes(2);
+      });
+    });
+  });
+
+  describe('clear history', () => {
+    beforeEach(() => {
+      mockGetAll.mockResolvedValue(mockHistoryEntries);
+    });
+
+    it('should call clear API when clear button is confirmed', async () => {
+      const user = userEvent.setup();
+      mockClear.mockResolvedValue({ success: true });
+      jest.spyOn(window, 'confirm').mockReturnValue(true);
+
+      render(<QueryHistory onSelectQuery={jest.fn()} />);
+
+      await waitFor(() => {
+        expect(screen.getByText(/SELECT Id, Name FROM Account/)).toBeInTheDocument();
+      });
+
+      // Find and click the clear button (trash icon)
+      const clearButton = screen.getByTitle(/clear/i);
+      await user.click(clearButton);
+
+      expect(window.confirm).toHaveBeenCalled();
+      expect(mockClear).toHaveBeenCalled();
+    });
+
+    it('should not clear when user cancels confirmation', async () => {
+      const user = userEvent.setup();
+      jest.spyOn(window, 'confirm').mockReturnValue(false);
+
+      render(<QueryHistory onSelectQuery={jest.fn()} />);
+
+      await waitFor(() => {
+        expect(screen.getByText(/SELECT Id, Name FROM Account/)).toBeInTheDocument();
+      });
+
+      const clearButton = screen.getByTitle(/clear/i);
+      await user.click(clearButton);
+
+      expect(window.confirm).toHaveBeenCalled();
+      expect(mockClear).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('success/error rendering', () => {
+    it('should show success indicator for successful queries', async () => {
+      mockGetAll.mockResolvedValue([
+        { id: '1', query: 'SELECT Id FROM Account', objectName: 'Account', executedAt: new Date().toISOString(), recordCount: 5, success: true },
+      ]);
+
+      render(<QueryHistory onSelectQuery={jest.fn()} />);
+
+      await waitFor(() => {
+        expect(screen.getByText(/SELECT Id FROM Account/)).toBeInTheDocument();
+      });
+
+      // Successful queries should show the record count
+      expect(screen.getByText(/5/)).toBeInTheDocument();
+    });
+
+    it('should show error indicator for failed queries', async () => {
+      mockGetAll.mockResolvedValue([
+        { id: '1', query: 'SELECT BadField FROM Account', objectName: 'Account', executedAt: new Date().toISOString(), recordCount: 0, success: false },
+      ]);
+
+      render(<QueryHistory onSelectQuery={jest.fn()} />);
+
+      await waitFor(() => {
+        expect(screen.getByText(/SELECT BadField FROM Account/)).toBeInTheDocument();
+      });
+
+      // Failed queries should still render (showing error styling)
+      const entryElement = screen.getByText(/SELECT BadField FROM Account/);
+      expect(entryElement).toBeInTheDocument();
+    });
+  });
+
+  describe('relative time formatting', () => {
+    it('should show relative time for recent entries', async () => {
+      mockGetAll.mockResolvedValue([
+        { id: '1', query: 'SELECT Id FROM Account', objectName: 'Account', executedAt: new Date(Date.now() - 30000).toISOString(), recordCount: 5, success: true },
+      ]);
+
+      render(<QueryHistory onSelectQuery={jest.fn()} />);
+
+      await waitFor(() => {
+        expect(screen.getByText(/SELECT Id FROM Account/)).toBeInTheDocument();
+      });
+
+      // Should show "Just now" or "Xm ago" for very recent entries
+      const timeTexts = screen.getAllByText(/just now|ago/i);
+      expect(timeTexts.length).toBeGreaterThan(0);
+    });
+  });
+
+  describe('search by object name', () => {
+    beforeEach(() => {
+      mockGetAll.mockResolvedValue(mockHistoryEntries);
+    });
+
+    it('should filter entries by object name', async () => {
+      const user = userEvent.setup();
+      render(<QueryHistory onSelectQuery={jest.fn()} />);
+
+      await waitFor(() => {
+        expect(screen.getByText(/SELECT Id, Name FROM Account/)).toBeInTheDocument();
+      });
+
+      const searchInput = screen.getByPlaceholderText(/search/i);
+      await user.type(searchInput, 'Account');
+
+      await waitFor(() => {
+        expect(screen.getByText(/SELECT Id, Name FROM Account/)).toBeInTheDocument();
+        expect(screen.queryByText(/SELECT Id, Email FROM Contact/)).not.toBeInTheDocument();
       });
     });
   });

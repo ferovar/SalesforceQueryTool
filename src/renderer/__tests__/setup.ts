@@ -69,6 +69,49 @@ const mockElectronAPI = {
     clear: jest.fn(() => Promise.resolve({ success: true })),
     delete: jest.fn(() => Promise.resolve({ success: true })),
   },
+
+  apex: {
+    execute: jest.fn(() => Promise.resolve({ success: true, data: { success: true, compiled: true, debugLog: '' } })),
+    getDebugLogs: jest.fn(() => Promise.resolve({ success: true, data: [] })),
+    getDebugLogBody: jest.fn(() => Promise.resolve({ success: true, data: '' })),
+  },
+
+  apexScripts: {
+    save: jest.fn(() => Promise.resolve({ success: true, data: { id: 'script-1', name: 'Test', script: '', createdAt: '', updatedAt: '' } })),
+    getAll: jest.fn(() => Promise.resolve([])),
+    get: jest.fn(() => Promise.resolve(undefined)),
+    delete: jest.fn(() => Promise.resolve({ success: true })),
+  },
+
+  apexHistory: {
+    getAll: jest.fn(() => Promise.resolve([])),
+    get: jest.fn(() => Promise.resolve(undefined)),
+    clear: jest.fn(() => Promise.resolve({ success: true })),
+    delete: jest.fn(() => Promise.resolve({ success: true })),
+  },
+
+  debug: {
+    searchUsers: jest.fn(() => Promise.resolve({ success: true, data: [] })),
+    createTraceFlag: jest.fn(() => Promise.resolve({ success: true, data: { traceFlagId: 'tf-1', expirationDate: new Date(Date.now() + 3600000).toISOString() } })),
+    deleteTraceFlag: jest.fn(() => Promise.resolve({ success: true })),
+    getActiveTraceFlags: jest.fn(() => Promise.resolve({ success: true, data: [] })),
+    getLogsForUser: jest.fn(() => Promise.resolve({ success: true, data: [] })),
+  },
+
+  migration: {
+    connectTargetOrg: jest.fn(() => Promise.resolve({ success: true })),
+    connectWithSavedOAuth: jest.fn(() => Promise.resolve({ success: true })),
+    connectWithSavedCredentials: jest.fn(() => Promise.resolve({ success: true })),
+    getTargetOrgs: jest.fn(() => Promise.resolve([])),
+    disconnectTargetOrg: jest.fn(() => Promise.resolve({ success: true })),
+    getRelationships: jest.fn(() => Promise.resolve({ success: true, data: { relationships: [], defaultConfig: [], excludedFields: [], excludedObjects: [] } })),
+    analyzeRecords: jest.fn(() => Promise.resolve({ success: true })),
+    executeMigration: jest.fn(() => Promise.resolve({ success: true })),
+    getChildRelationships: jest.fn(() => Promise.resolve({ success: true, data: [] })),
+    getExternalIdFields: jest.fn(() => Promise.resolve({ success: true, data: [] })),
+  },
+
+  getPerformanceData: jest.fn(() => Promise.resolve({ heapUsed: 1000000, heapTotal: 2000000, external: 500000, uptime: 100 })),
 };
 
 Object.defineProperty(window, 'electronAPI', {

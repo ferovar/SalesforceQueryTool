@@ -174,6 +174,11 @@ input:focus, textarea:focus, select:focus {
   height: 100%;
   overflow: auto;
   resize: none;
+  border: none !important;
+  outline: none;
+  white-space: pre-wrap;
+  word-break: break-word;
+  overflow-wrap: break-word;
 }
 
 .query-editor-transparent::placeholder {
@@ -200,7 +205,7 @@ input:focus, textarea:focus, select:focus {
   padding: 16px;
   margin: 0;
   line-height: 1.5;
-  word-wrap: break-word;
+  word-break: break-word;
   overflow-wrap: break-word;
   white-space: pre-wrap;
   color: #dbdee1;
