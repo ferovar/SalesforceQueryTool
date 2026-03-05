@@ -2,7 +2,7 @@
  * Window lifecycle management — splash window and main application window.
  */
 
-import { BrowserWindow, app, ipcMain } from 'electron';
+import { BrowserWindow, app, ipcMain, session } from 'electron';
 import * as path from 'path';
 
 const SPLASH_TIMEOUT_MS = 2000;
@@ -10,7 +10,9 @@ const SPLASH_TIMEOUT_MS = 2000;
 let mainWindow: BrowserWindow | null = null;
 let splashWindow: BrowserWindow | null = null;
 
-const isDev = !app.isPackaged;
+function isDev(): boolean {
+  return !app.isPackaged;
+}
 
 export function getMainWindow(): BrowserWindow | null {
   return mainWindow;
@@ -31,7 +33,7 @@ function createSplashWindow(): void {
     },
   });
 
-  if (isDev) {
+  if (isDev()) {
     splashWindow.loadURL('http://localhost:5173/splash.html');
   } else {
     splashWindow.loadFile(path.join(__dirname, '../renderer/splash.html'));
@@ -55,13 +57,13 @@ function createMainWindow(): void {
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
-      preload: path.join(__dirname, 'preload.js'),
+      preload: path.join(__dirname, '..', 'preload.js'),
       // Content Security Policy
       sandbox: true,
     },
   });
 
-  if (isDev) {
+  if (isDev()) {
     mainWindow.loadURL('http://localhost:5173');
   } else {
     mainWindow.loadFile(path.join(__dirname, '../renderer/index.html'));
@@ -125,13 +127,12 @@ export function initWindowManagement(): void {
   // App lifecycle
   app.whenReady().then(() => {
     // Set CSP headers for all windows
-    const { session } = require('electron');
     session.defaultSession.webRequest.onHeadersReceived((details: any, callback: any) => {
       callback({
         responseHeaders: {
           ...details.responseHeaders,
           'Content-Security-Policy': [
-            isDev
+            isDev()
               ? "default-src 'self' http://localhost:5173; script-src 'self' 'unsafe-inline' http://localhost:5173; style-src 'self' 'unsafe-inline' http://localhost:5173; connect-src 'self' http://localhost:5173 ws://localhost:5173 https://*.salesforce.com https://*.force.com; img-src 'self' data:;"
               : "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'self' https://*.salesforce.com https://*.force.com; img-src 'self' data:;",
           ],
