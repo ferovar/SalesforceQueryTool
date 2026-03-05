@@ -17,7 +17,7 @@ describe('TitleBar', () => {
   describe('rendering', () => {
     it('should render the app title', () => {
       render(<TitleBar {...defaultProps} />);
-      expect(screen.getByText('Salesforce Query Tool')).toBeInTheDocument();
+      expect(screen.getByText('Salesforce Studio')).toBeInTheDocument();
     });
 
     it('should render window control buttons', () => {

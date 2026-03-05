@@ -40,7 +40,7 @@
     "@vitejs/plugin-react": "^4.2.1",
     "autoprefixer": "^10.4.16",
     "concurrently": "^8.2.2",
-    "electron": "^28.0.0",
+    "electron": "^28.3.3",
     "electron-builder": "^24.9.1",
     "electron-builder-squirrel-windows": "^24.13.3",
     "identity-obj-proxy": "^3.0.0",
@@ -56,7 +56,7 @@
   },
   "build": {
     "appId": "com.salesforce.querytool",
-    "productName": "Salesforce Query Tool",
+    "productName": "Salesforce Studio",
     "directories": {
       "output": "release"
     },
@@ -82,7 +82,7 @@
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "shortcutName": "Salesforce Query Tool"
+      "shortcutName": "Salesforce Studio"
     },
     "portable": {
       "artifactName": "${productName}-Portable-${version}.${ext}"

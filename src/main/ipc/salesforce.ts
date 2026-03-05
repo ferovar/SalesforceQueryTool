@@ -4,12 +4,14 @@
 
 import { SalesforceService } from '../services/salesforce';
 import { CredentialsStore } from '../services/credentials';
+import { PlatformEventsService } from '../services/platformEvents';
 import { handleIpc } from './handler';
 import { requireString, requireBoolean, requireApiName, requireSalesforceId, requireArray, optionalString, optionalNumber } from './validate';
 
 export function registerSalesforceHandlers(
   salesforceService: SalesforceService,
   credentialsStore: CredentialsStore,
+  platformEventsService?: PlatformEventsService,
 ): void {
   handleIpc('salesforce:login', async (credentials: {
     label: string;
@@ -72,6 +74,7 @@ export function registerSalesforceHandlers(
   });
 
   handleIpc('salesforce:logout', async () => {
+    platformEventsService?.unsubscribeAll();
     await salesforceService.logout();
   });
 

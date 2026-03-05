@@ -192,8 +192,7 @@ describe('LoginPage', () => {
   });
 
   describe('saved logins', () => {
-    it('should display saved OAuth logins in dropdown', async () => {
-      const user = userEvent.setup();
+    it('should display saved OAuth logins as connection cards', async () => {
       const savedOAuthLogins = [
         { id: 'oauth-1', label: 'My Org', username: 'admin@myorg.com', isSandbox: false, lastUsed: '2024-01-01', loginType: 'oauth' as const, color: '#5865f2' },
       ];
@@ -201,19 +200,17 @@ describe('LoginPage', () => {
 
       renderWithSettings(<LoginPage {...defaultProps} />);
 
-      // Saved OAuth logins are behind a dropdown - click to expand
-      await waitFor(() => {
-        expect(screen.getByText(/Select saved OAuth connection/)).toBeInTheDocument();
-      });
-
-      await user.click(screen.getByText(/Select saved OAuth connection/));
-
+      // Connection picker should show the saved connection as a card
       await waitFor(() => {
         expect(screen.getByText('My Org')).toBeInTheDocument();
+        expect(screen.getByText('admin@myorg.com')).toBeInTheDocument();
       });
+
+      // Should show "New Connection" button
+      expect(screen.getByText('New Connection')).toBeInTheDocument();
     });
 
-    it('should login with saved OAuth login when clicked', async () => {
+    it('should login with saved OAuth login when card is clicked', async () => {
       const user = userEvent.setup();
       const savedOAuthLogins = [
         { id: 'oauth-1', label: 'My Org', username: 'admin@myorg.com', isSandbox: false, lastUsed: '2024-01-01', loginType: 'oauth' as const, color: '#5865f2' },
@@ -226,18 +223,12 @@ describe('LoginPage', () => {
 
       renderWithSettings(<LoginPage {...defaultProps} />);
 
-      // Expand the saved OAuth connections dropdown
-      await waitFor(() => {
-        expect(screen.getByText(/Select saved OAuth connection/)).toBeInTheDocument();
-      });
-
-      await user.click(screen.getByText(/Select saved OAuth connection/));
-
+      // Wait for the connection card to appear
       await waitFor(() => {
         expect(screen.getByText('My Org')).toBeInTheDocument();
       });
 
-      // Click on the saved login
+      // Click on the connection card
       await user.click(screen.getByText('My Org'));
 
       await waitFor(() => {

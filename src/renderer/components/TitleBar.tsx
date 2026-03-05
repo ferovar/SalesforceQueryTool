@@ -49,7 +49,7 @@ const TitleBar: React.FC<TitleBarProps> = ({ isLoggedIn, onLogout, instanceUrl, 
           <svg className="w-4 h-4" viewBox="0 0 100 100" fill="none">
             <path d="M80 55c0-8.284-6.716-15-15-15-.74 0-1.466.054-2.175.158C60.33 31.21 52.067 25 42.5 25 30.626 25 21 34.626 21 46.5c0 .84.048 1.67.14 2.484C14.023 51.145 9 57.817 9 65.5 9 75.165 16.835 83 26.5 83h48c10.77 0 19.5-8.73 19.5-19.5 0-4.41-1.46-8.48-3.926-11.754C83.17 50.246 80 52.284 80 55z" fill="#5865f2"/>
           </svg>
-          <span className="text-xs font-semibold" style={{ color: textColor }}>Salesforce Query Tool</span>
+          <span className="text-xs font-semibold" style={{ color: textColor }}>Salesforce Studio</span>
         </div>
       </div>
 

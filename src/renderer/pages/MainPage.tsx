@@ -8,6 +8,7 @@ import QueryHistory from '../components/QueryHistory';
 import AmbientStarfield from '../components/AmbientStarfield';
 import AmbientWaves from '../components/AmbientWaves';
 import AnonymousApexModal from '../components/AnonymousApexModal';
+import PlatformEventsModal from '../components/platformEvents/PlatformEventsModal';
 import { useSettings } from '../contexts/SettingsContext';
 
 interface MainPageProps {
@@ -34,6 +35,7 @@ const MainPage: React.FC<MainPageProps> = ({ session, onOpenSettings }) => {
   const isManualSelectionRef = useRef(false); // Track manual object selection to prevent auto-detect loops
   const [selectedLimit, setSelectedLimit] = useState<number>(settings.defaultQueryLimit);
   const [isApexModalOpen, setIsApexModalOpen] = useState(false);
+  const [isPlatformEventsOpen, setIsPlatformEventsOpen] = useState(false);
 
   // Load objects on mount
   useEffect(() => {
@@ -315,6 +317,16 @@ const MainPage: React.FC<MainPageProps> = ({ session, onOpenSettings }) => {
             <span>Apex</span>
           </button>
           <button
+            onClick={() => setIsPlatformEventsOpen(true)}
+            className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-discord-medium hover:bg-discord-light rounded text-discord-text text-sm transition-colors"
+            title="Platform Events"
+          >
+            <svg className="w-4 h-4 text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+            </svg>
+            <span>Events</span>
+          </button>
+          <button
             onClick={onOpenSettings}
             className="p-2 bg-discord-medium hover:bg-discord-light rounded text-discord-text-muted hover:text-discord-text transition-colors"
             title="Settings"
@@ -475,6 +487,12 @@ const MainPage: React.FC<MainPageProps> = ({ session, onOpenSettings }) => {
       <AnonymousApexModal
         isOpen={isApexModalOpen}
         onClose={() => setIsApexModalOpen(false)}
+      />
+
+      {/* Platform Events Modal */}
+      <PlatformEventsModal
+        isOpen={isPlatformEventsOpen}
+        onClose={() => setIsPlatformEventsOpen(false)}
       />
     </div>
   );

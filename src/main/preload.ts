@@ -162,6 +162,36 @@ contextBridge.exposeInMainWorld('electronAPI', {
       ipcRenderer.invoke('migration:getExternalIdFields', objectName),
   },
 
+  // Platform Events
+  platformEvents: {
+    getEvents: () => ipcRenderer.invoke('platformEvents:getEvents'),
+    describe: (eventName: string) => ipcRenderer.invoke('platformEvents:describe', eventName),
+    publish: (eventName: string, payload: Record<string, unknown>) =>
+      ipcRenderer.invoke('platformEvents:publish', eventName, payload),
+    publishBulk: (eventName: string, payloads: Record<string, unknown>[]) =>
+      ipcRenderer.invoke('platformEvents:publishBulk', eventName, payloads),
+    subscribe: (eventName: string, replayId?: number) =>
+      ipcRenderer.invoke('platformEvents:subscribe', eventName, replayId),
+    unsubscribe: (subscriptionId: string) =>
+      ipcRenderer.invoke('platformEvents:unsubscribe', subscriptionId),
+    unsubscribeAll: () => ipcRenderer.invoke('platformEvents:unsubscribeAll'),
+    getSubscriptions: () => ipcRenderer.invoke('platformEvents:getSubscriptions'),
+    savePayload: (eventName: string, name: string, payload: Record<string, unknown>, existingId?: string) =>
+      ipcRenderer.invoke('platformEvents:savePayload', eventName, name, payload, existingId),
+    getPayloads: () => ipcRenderer.invoke('platformEvents:getPayloads'),
+    getPayloadsForEvent: (eventName: string) =>
+      ipcRenderer.invoke('platformEvents:getPayloadsForEvent', eventName),
+    deletePayload: (id: string) => ipcRenderer.invoke('platformEvents:deletePayload', id),
+    getHistory: () => ipcRenderer.invoke('platformEvents:getHistory'),
+    clearHistory: () => ipcRenderer.invoke('platformEvents:clearHistory'),
+    deleteHistoryEntry: (id: string) => ipcRenderer.invoke('platformEvents:deleteHistoryEntry', id),
+    onEvent: (callback: (data: any) => void) => {
+      const handler = (_event: any, data: any) => callback(data);
+      ipcRenderer.on('platformEvents:event', handler);
+      return () => { ipcRenderer.removeListener('platformEvents:event', handler); };
+    },
+  },
+
   // Application settings (persisted via electron-store)
   settings: {
     get: () => ipcRenderer.invoke('settings:get'),

@@ -156,6 +156,30 @@ export interface ElectronAPI {
     }>;
   };
 
+  // Platform Events
+  platformEvents: {
+    getEvents: () => Promise<{ success: boolean; data?: PlatformEventInfo[]; error?: string }>;
+    describe: (eventName: string) => Promise<{ success: boolean; data?: PlatformEventDescribe; error?: string }>;
+    publish: (eventName: string, payload: Record<string, unknown>) =>
+      Promise<{ success: boolean; data?: PlatformEventPublishResult; error?: string }>;
+    publishBulk: (eventName: string, payloads: Record<string, unknown>[]) =>
+      Promise<{ success: boolean; data?: PlatformEventPublishResult[]; error?: string }>;
+    subscribe: (eventName: string, replayId?: number) =>
+      Promise<{ success: boolean; data?: { subscriptionId: string }; error?: string }>;
+    unsubscribe: (subscriptionId: string) => Promise<{ success: boolean; error?: string }>;
+    unsubscribeAll: () => Promise<{ success: boolean; error?: string }>;
+    getSubscriptions: () => Promise<PlatformEventSubscription[]>;
+    savePayload: (eventName: string, name: string, payload: Record<string, unknown>, existingId?: string) =>
+      Promise<{ success: boolean; data?: SavedEventPayload; error?: string }>;
+    getPayloads: () => Promise<SavedEventPayload[]>;
+    getPayloadsForEvent: (eventName: string) => Promise<SavedEventPayload[]>;
+    deletePayload: (id: string) => Promise<{ success: boolean }>;
+    getHistory: () => Promise<EventPublishHistoryEntry[]>;
+    clearHistory: () => Promise<{ success: boolean }>;
+    deleteHistoryEntry: (id: string) => Promise<{ success: boolean }>;
+    onEvent: (callback: (data: PlatformEventMessage) => void) => () => void;
+  };
+
   // Application settings (persisted via electron-store)
   settings: {
     get: () => Promise<AppSettings>;
@@ -392,6 +416,69 @@ export interface AppSettings {
   compactResultsView: boolean;
   showRecentObjectsFirst: boolean;
   theme: ThemeType;
+}
+
+// Platform Events types
+export interface PlatformEventInfo {
+  name: string;
+  label: string;
+  keyPrefix: string | null;
+}
+
+export interface PlatformEventField {
+  name: string;
+  label: string;
+  type: string;
+  length: number;
+  nillable: boolean;
+  createable: boolean;
+  defaultValue: unknown;
+  picklistValues?: { value: string; label: string; active: boolean }[];
+}
+
+export interface PlatformEventDescribe {
+  name: string;
+  label: string;
+  fields: PlatformEventField[];
+}
+
+export interface PlatformEventPublishResult {
+  id: string | null;
+  success: boolean;
+  errors: string[];
+}
+
+export interface PlatformEventSubscription {
+  id: string;
+  eventName: string;
+  startedAt: string;
+  eventCount: number;
+}
+
+export interface SavedEventPayload {
+  id: string;
+  eventName: string;
+  name: string;
+  payload: Record<string, unknown>;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface EventPublishHistoryEntry {
+  id: string;
+  eventName: string;
+  payload: Record<string, unknown>;
+  publishedAt: string;
+  success: boolean;
+  resultId?: string;
+  error?: string;
+}
+
+export interface PlatformEventMessage {
+  subscriptionId: string;
+  eventName: string;
+  data: any;
+  receivedAt: string;
 }
 
 declare global {
