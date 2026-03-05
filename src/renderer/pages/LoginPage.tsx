@@ -3,6 +3,7 @@ import type { UserSession } from '../App';
 import type { SavedLogin, SavedOAuthLogin } from '../types/electron.d';
 import StarfieldBackground from '../components/StarfieldBackground';
 import { WavesBackground } from '../components/NatureBackground';
+import PunchoutBackground from '../components/PunchoutBackground';
 import { useSettings } from '../contexts/SettingsContext';
 
 interface LoginPageProps {
@@ -353,6 +354,8 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess, onOpenSettings })
       {/* Animated background */}
       {settings.theme === 'nature' ? (
         <WavesBackground key="waves-bg" />
+      ) : settings.theme === 'punchout' ? (
+        <PunchoutBackground key="punchout-bg" />
       ) : (
         <StarfieldBackground key="starfield-bg" />
       )}

@@ -194,10 +194,11 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                 description="Choose your preferred animated background theme."
                 value={localSettings.theme}
                 options={[
-                  { value: 'nature', label: '� Waves (Ocean)' },
-                  { value: 'starfield', label: '⭐ Starfield (Space)' },
+                  { value: 'nature', label: 'Waves (Ocean)' },
+                  { value: 'starfield', label: 'Starfield (Space)' },
+                  { value: 'punchout', label: 'Punchout (City Ride)' },
                 ]}
-                onChange={(v) => handleChange('theme', v as 'nature' | 'starfield')}
+                onChange={(v) => handleChange('theme', v as ThemeType)}
               />
               <SettingToggle
                 label="Show Recent Objects First"

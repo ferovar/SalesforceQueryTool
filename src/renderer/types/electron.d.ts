@@ -402,7 +402,7 @@ export interface UserDebugLog {
 }
 
 // Settings types
-export type ThemeType = 'nature' | 'starfield';
+export type ThemeType = 'nature' | 'starfield' | 'punchout';
 
 export interface AppSettings {
   showPerformanceMonitor: boolean;

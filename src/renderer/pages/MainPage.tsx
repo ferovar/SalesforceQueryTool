@@ -7,6 +7,7 @@ import ResultsTable from '../components/ResultsTable';
 import QueryHistory from '../components/QueryHistory';
 import AmbientStarfield from '../components/AmbientStarfield';
 import AmbientWaves from '../components/AmbientWaves';
+import AmbientPunchout from '../components/AmbientPunchout';
 import AnonymousApexModal from '../components/AnonymousApexModal';
 import PlatformEventsModal from '../components/platformEvents/PlatformEventsModal';
 import { useSettings } from '../contexts/SettingsContext';
@@ -298,6 +299,8 @@ const MainPage: React.FC<MainPageProps> = ({ session, onOpenSettings }) => {
       {/* Ambient Background - Theme-dependent */}
       {settings.theme === 'nature' ? (
         <AmbientWaves opacity={0.4} />
+      ) : settings.theme === 'punchout' ? (
+        <AmbientPunchout opacity={0.35} />
       ) : (
         <AmbientStarfield opacity={0.35} starCount={120} shootingStarInterval={12000} />
       )}
