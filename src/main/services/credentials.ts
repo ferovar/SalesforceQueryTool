@@ -9,6 +9,7 @@ interface StoredCredentials {
   securityToken: string;
   isSandbox: boolean;
   color?: string;
+  sandboxType?: string;
 }
 
 interface SavedLogin {
@@ -20,6 +21,7 @@ interface SavedLogin {
   lastUsed: string;
   loginType: 'credentials';
   color?: string;
+  sandboxType?: string;
 }
 
 interface SavedOAuthLogin {
@@ -34,6 +36,7 @@ interface SavedOAuthLogin {
   lastUsed: string;
   loginType: 'oauth';
   color?: string;
+  sandboxType?: string;
 }
 
 interface StoreSchema {
@@ -111,6 +114,8 @@ export class CredentialsStore {
       password: this.encrypt(credentials.password),
       securityToken: this.encrypt(credentials.securityToken),
       isSandbox: credentials.isSandbox,
+      color: credentials.color,
+      sandboxType: credentials.sandboxType,
     };
 
     this.store.set('lastCredentials', encrypted);
@@ -177,7 +182,7 @@ export class CredentialsStore {
     this.store.set('savedOAuthLogins', savedOAuthLogins);
   }
 
-  getSavedOAuthLogins(): Array<{ id: string; label: string; username: string; isSandbox: boolean; lastUsed: string; loginType: 'oauth' }> {
+  getSavedOAuthLogins(): Array<{ id: string; label: string; username: string; isSandbox: boolean; lastUsed: string; loginType: 'oauth'; sandboxType?: string }> {
     const savedOAuthLogins = this.store.get('savedOAuthLogins') || [];
     return savedOAuthLogins.map((login) => ({
       id: login.id,
@@ -186,6 +191,7 @@ export class CredentialsStore {
       isSandbox: login.isSandbox,
       lastUsed: login.lastUsed,
       loginType: 'oauth' as const,
+      sandboxType: login.sandboxType,
     }));
   }
 
@@ -234,7 +240,7 @@ export class CredentialsStore {
     }
   }
 
-  getSavedLogins(): Array<{ label: string; username: string; isSandbox: boolean; lastUsed: string; color?: string }> {
+  getSavedLogins(): Array<{ label: string; username: string; isSandbox: boolean; lastUsed: string; color?: string; sandboxType?: string }> {
     const savedLogins = this.store.get('savedLogins') || [];
     return savedLogins.map((login) => ({
       label: login.label || login.username,
@@ -242,6 +248,7 @@ export class CredentialsStore {
       isSandbox: login.isSandbox,
       lastUsed: login.lastUsed,
       color: login.color,
+      sandboxType: login.sandboxType,
     }));
   }
 
@@ -277,22 +284,22 @@ export class CredentialsStore {
     }
   }
 
-  updateLoginMetadata(username: string, label: string, color: string): void {
+  updateLoginMetadata(username: string, label: string, color: string, sandboxType?: string): void {
     const savedLogins = this.store.get('savedLogins') || [];
     const updated = savedLogins.map((login) => {
       if (login.username === username) {
-        return { ...login, label, color };
+        return { ...login, label, color, sandboxType };
       }
       return login;
     });
     this.store.set('savedLogins', updated);
   }
 
-  updateOAuthMetadata(id: string, label: string, color: string): void {
+  updateOAuthMetadata(id: string, label: string, color: string, sandboxType?: string): void {
     const savedOAuthLogins = this.store.get('savedOAuthLogins') || [];
     const updated = savedOAuthLogins.map((login) => {
       if (login.id === id) {
-        return { ...login, label, color };
+        return { ...login, label, color, sandboxType };
       }
       return login;
     });

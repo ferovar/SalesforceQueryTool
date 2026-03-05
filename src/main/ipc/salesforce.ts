@@ -21,6 +21,7 @@ export function registerSalesforceHandlers(
     isSandbox: boolean;
     saveCredentials: boolean;
     color?: string;
+    sandboxType?: string;
   }) => {
     requireString(credentials.username, 'username');
     requireString(credentials.password, 'password');
@@ -40,6 +41,7 @@ export function registerSalesforceHandlers(
         securityToken: credentials.securityToken,
         isSandbox: credentials.isSandbox,
         color: credentials.color,
+        sandboxType: credentials.isSandbox ? credentials.sandboxType : undefined,
       });
     }
 

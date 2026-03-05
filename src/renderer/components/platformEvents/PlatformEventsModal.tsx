@@ -1,9 +1,11 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import type { PlatformEventInfo, PlatformEventDescribe, PlatformEventMessage } from '../../types/electron.d';
 import DiscoverTab from './DiscoverTab';
 import PublishTab from './PublishTab';
 import SubscribeTab from './SubscribeTab';
 import PublishHistoryTab from './PublishHistoryTab';
+
+const isNamespaced = (name: string) => name.replace(/__e$/, '').includes('__');
 
 interface PlatformEventsModalProps {
   isOpen: boolean;
@@ -20,6 +22,12 @@ const PlatformEventsModal: React.FC<PlatformEventsModalProps> = ({ isOpen, onClo
   const [selectedEventDescribe, setSelectedEventDescribe] = useState<PlatformEventDescribe | null>(null);
   const [liveEvents, setLiveEvents] = useState<PlatformEventMessage[]>([]);
   const [activeSubscriptionCount, setActiveSubscriptionCount] = useState(0);
+  const [includeNamespaces, setIncludeNamespaces] = useState(false);
+
+  const filteredEvents = useMemo(() => {
+    if (includeNamespaces) return events;
+    return events.filter((e) => !isNamespaced(e.name));
+  }, [events, includeNamespaces]);
 
   // Load events when modal opens
   useEffect(() => {
@@ -148,29 +156,35 @@ const PlatformEventsModal: React.FC<PlatformEventsModalProps> = ({ isOpen, onClo
         <div className="flex-1 overflow-hidden">
           {activeTab === 'discover' && (
             <DiscoverTab
-              events={events}
+              events={filteredEvents}
               isLoading={isLoadingEvents}
               onRefresh={loadEvents}
               onSelectEvent={handleSelectEvent}
               selectedEventName={selectedEventName}
               selectedEventDescribe={selectedEventDescribe}
               onUseInPublish={handleUseInPublish}
+              includeNamespaces={includeNamespaces}
+              onToggleNamespaces={setIncludeNamespaces}
             />
           )}
           {activeTab === 'publish' && (
             <PublishTab
-              events={events}
+              events={filteredEvents}
               selectedEventName={selectedEventName}
               selectedEventDescribe={selectedEventDescribe}
               onSelectEvent={handleSelectEvent}
+              includeNamespaces={includeNamespaces}
+              onToggleNamespaces={setIncludeNamespaces}
             />
           )}
           {activeTab === 'subscribe' && (
             <SubscribeTab
-              events={events}
+              events={filteredEvents}
               liveEvents={liveEvents}
               onClearEvents={() => setLiveEvents([])}
               onRefreshSubscriptions={refreshSubscriptionCount}
+              includeNamespaces={includeNamespaces}
+              onToggleNamespaces={setIncludeNamespaces}
             />
           )}
           {activeTab === 'history' && (

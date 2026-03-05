@@ -11,6 +11,8 @@ interface PublishTabProps {
   selectedEventName: string;
   selectedEventDescribe: PlatformEventDescribe | null;
   onSelectEvent: (eventName: string) => void;
+  includeNamespaces: boolean;
+  onToggleNamespaces: (value: boolean) => void;
 }
 
 const PublishTab: React.FC<PublishTabProps> = ({
@@ -18,6 +20,8 @@ const PublishTab: React.FC<PublishTabProps> = ({
   selectedEventName,
   selectedEventDescribe,
   onSelectEvent,
+  includeNamespaces,
+  onToggleNamespaces,
 }) => {
   const [fieldValues, setFieldValues] = useState<Record<string, string>>({});
   const [isJsonMode, setIsJsonMode] = useState(false);
@@ -207,6 +211,15 @@ const PublishTab: React.FC<PublishTabProps> = ({
                 </option>
               ))}
             </select>
+            <label className="flex items-center gap-1.5 text-xs text-discord-text-muted cursor-pointer whitespace-nowrap">
+              <input
+                type="checkbox"
+                checked={includeNamespaces}
+                onChange={(e) => onToggleNamespaces(e.target.checked)}
+                className="rounded"
+              />
+              Include Namespaces
+            </label>
           </div>
 
           <div className="flex items-center gap-2 ml-auto">

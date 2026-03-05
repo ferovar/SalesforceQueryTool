@@ -10,6 +10,8 @@ interface SubscribeTabProps {
   liveEvents: PlatformEventMessage[];
   onClearEvents: () => void;
   onRefreshSubscriptions: () => void;
+  includeNamespaces: boolean;
+  onToggleNamespaces: (value: boolean) => void;
 }
 
 const SubscribeTab: React.FC<SubscribeTabProps> = ({
@@ -17,6 +19,8 @@ const SubscribeTab: React.FC<SubscribeTabProps> = ({
   liveEvents,
   onClearEvents,
   onRefreshSubscriptions,
+  includeNamespaces,
+  onToggleNamespaces,
 }) => {
   const [selectedEvent, setSelectedEvent] = useState('');
   const [replayId, setReplayId] = useState<number>(-1);
@@ -112,6 +116,16 @@ const SubscribeTab: React.FC<SubscribeTabProps> = ({
               </option>
             ))}
           </select>
+
+          <label className="flex items-center gap-1.5 text-xs text-discord-text-muted cursor-pointer">
+            <input
+              type="checkbox"
+              checked={includeNamespaces}
+              onChange={(e) => onToggleNamespaces(e.target.checked)}
+              className="rounded"
+            />
+            Include Namespaces
+          </label>
 
           <div className="flex items-center gap-2">
             <label className="text-xs text-discord-text-muted">Replay:</label>

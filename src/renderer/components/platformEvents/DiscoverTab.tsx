@@ -9,6 +9,8 @@ interface DiscoverTabProps {
   selectedEventName: string;
   selectedEventDescribe: PlatformEventDescribe | null;
   onUseInPublish: (eventName: string) => void;
+  includeNamespaces: boolean;
+  onToggleNamespaces: (value: boolean) => void;
 }
 
 const DiscoverTab: React.FC<DiscoverTabProps> = ({
@@ -19,6 +21,8 @@ const DiscoverTab: React.FC<DiscoverTabProps> = ({
   selectedEventName,
   selectedEventDescribe,
   onUseInPublish,
+  includeNamespaces,
+  onToggleNamespaces,
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
 
@@ -54,6 +58,15 @@ const DiscoverTab: React.FC<DiscoverTabProps> = ({
             placeholder="Search events..."
             className="w-full px-3 py-1.5 bg-discord-medium border border-discord-darker rounded text-sm text-discord-text placeholder-discord-text-muted focus:outline-none focus:border-discord-accent"
           />
+          <label className="flex items-center gap-1.5 text-xs text-discord-text-muted cursor-pointer mt-1.5 whitespace-nowrap">
+            <input
+              type="checkbox"
+              checked={includeNamespaces}
+              onChange={(e) => onToggleNamespaces(e.target.checked)}
+              className="rounded"
+            />
+            Include Namespaces
+          </label>
         </div>
 
         <div className="flex-1 overflow-y-auto">

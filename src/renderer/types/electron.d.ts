@@ -87,11 +87,11 @@ export interface ElectronAPI {
     clear: () => Promise<{ success: boolean }>;
     getSavedLogins: () => Promise<SavedLogin[]>;
     deleteSavedLogin: (username: string) => Promise<{ success: boolean }>;
-    updateLoginMetadata: (username: string, label: string, color: string) => Promise<{ success: boolean }>;
+    updateLoginMetadata: (username: string, label: string, color: string, sandboxType?: string) => Promise<{ success: boolean }>;
     getLoginByUsername: (username: string) => Promise<StoredCredentials | null>;
     getSavedOAuthLogins: () => Promise<SavedOAuthLogin[]>;
     deleteOAuthLogin: (id: string) => Promise<{ success: boolean }>;
-    updateOAuthMetadata: (id: string, label: string, color: string) => Promise<{ success: boolean }>;
+    updateOAuthMetadata: (id: string, label: string, color: string, sandboxType?: string) => Promise<{ success: boolean }>;
   };
 
   queries: {
@@ -231,6 +231,7 @@ export interface SavedLogin {
   isSandbox: boolean;
   lastUsed: string;
   color?: string;
+  sandboxType?: 'DEV' | 'QA' | 'STG' | 'PROJ';
 }
 
 export interface SavedOAuthLogin {
@@ -241,6 +242,7 @@ export interface SavedOAuthLogin {
   lastUsed: string;
   loginType: 'oauth';
   color?: string;
+  sandboxType?: 'DEV' | 'QA' | 'STG' | 'PROJ';
 }
 
 export interface SavedQuery {

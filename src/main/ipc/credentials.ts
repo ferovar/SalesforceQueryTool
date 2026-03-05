@@ -26,10 +26,10 @@ export function registerCredentialsHandlers(
     credentialsStore.deleteSavedLogin(username);
   });
 
-  handleIpc('credentials:updateLoginMetadata', (username: string, label: string, color: string) => {
+  handleIpc('credentials:updateLoginMetadata', (username: string, label: string, color: string, sandboxType?: string) => {
     requireString(username, 'username');
     requireString(label, 'label');
-    credentialsStore.updateLoginMetadata(username, label, color ?? '');
+    credentialsStore.updateLoginMetadata(username, label, color ?? '', sandboxType);
   });
 
   handleIpcRaw('credentials:getLoginByUsername', (username: string) => {
@@ -46,9 +46,9 @@ export function registerCredentialsHandlers(
     credentialsStore.deleteOAuthLogin(id);
   });
 
-  handleIpc('credentials:updateOAuthMetadata', (id: string, label: string, color: string) => {
+  handleIpc('credentials:updateOAuthMetadata', (id: string, label: string, color: string, sandboxType?: string) => {
     requireString(id, 'OAuth login ID');
     requireString(label, 'label');
-    credentialsStore.updateOAuthMetadata(id, label, color ?? '');
+    credentialsStore.updateOAuthMetadata(id, label, color ?? '', sandboxType);
   });
 }

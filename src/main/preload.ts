@@ -96,13 +96,13 @@ contextBridge.exposeInMainWorld('electronAPI', {
     clear: () => ipcRenderer.invoke('credentials:clear'),
     getSavedLogins: () => ipcRenderer.invoke('credentials:getSavedLogins'),
     deleteSavedLogin: (username: string) => ipcRenderer.invoke('credentials:deleteSavedLogin', username),
-    updateLoginMetadata: (username: string, label: string, color: string) => 
-      ipcRenderer.invoke('credentials:updateLoginMetadata', username, label, color),
+    updateLoginMetadata: (username: string, label: string, color: string, sandboxType?: string) =>
+      ipcRenderer.invoke('credentials:updateLoginMetadata', username, label, color, sandboxType),
     getLoginByUsername: (username: string) => ipcRenderer.invoke('credentials:getLoginByUsername', username),
     getSavedOAuthLogins: () => ipcRenderer.invoke('credentials:getSavedOAuthLogins'),
     deleteOAuthLogin: (id: string) => ipcRenderer.invoke('credentials:deleteOAuthLogin', id),
-    updateOAuthMetadata: (id: string, label: string, color: string) => 
-      ipcRenderer.invoke('credentials:updateOAuthMetadata', id, label, color),
+    updateOAuthMetadata: (id: string, label: string, color: string, sandboxType?: string) =>
+      ipcRenderer.invoke('credentials:updateOAuthMetadata', id, label, color, sandboxType),
   },
 
   // Saved queries management

@@ -21,6 +21,7 @@ interface ConnectionEntry {
   username: string;
   isSandbox: boolean;
   color?: string;
+  sandboxType?: string;
   raw: SavedLogin | SavedOAuthLogin;
 }
 
@@ -29,6 +30,7 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess, onOpenSettings })
   const [environment, setEnvironment] = useState<Environment>('production');
   const [label, setLabel] = useState('');
   const [color, setColor] = useState('#5865f2');
+  const [newSandboxType, setNewSandboxType] = useState<string | undefined>(undefined);
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [securityToken, setSecurityToken] = useState('');
@@ -44,6 +46,7 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess, onOpenSettings })
   const [editingConnection, setEditingConnection] = useState<string | null>(null);
   const [editLabel, setEditLabel] = useState('');
   const [editColor, setEditColor] = useState('#5865f2');
+  const [editSandboxType, setEditSandboxType] = useState<string | undefined>(undefined);
   const [productionOrder, setProductionOrder] = useState<ConnectionEntry[]>([]);
   const [sandboxOrder, setSandboxOrder] = useState<ConnectionEntry[]>([]);
   const [dragIndex, setDragIndex] = useState<number | null>(null);
@@ -82,6 +85,7 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess, onOpenSettings })
       username: login.username,
       isSandbox: login.isSandbox,
       color: login.color,
+      sandboxType: login.sandboxType,
       raw: login,
     }));
     const oauths: ConnectionEntry[] = savedOAuthLogins.map((login) => ({
@@ -91,6 +95,7 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess, onOpenSettings })
       username: login.username,
       isSandbox: login.isSandbox,
       color: login.color,
+      sandboxType: login.sandboxType,
       raw: login,
     }));
     return [...creds, ...oauths];
@@ -248,6 +253,7 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess, onOpenSettings })
     setEditingConnection(conn.id);
     setEditLabel(conn.label);
     setEditColor(conn.color || '#5865f2');
+    setEditSandboxType(conn.sandboxType);
   };
 
   const handleSaveConnectionEdit = async (conn: ConnectionEntry, e: React.MouseEvent) => {
@@ -258,6 +264,7 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess, onOpenSettings })
           (conn.raw as SavedLogin).username,
           editLabel,
           editColor,
+          conn.isSandbox ? editSandboxType : undefined,
         );
         await loadSavedLogins();
       } else {
@@ -265,6 +272,7 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess, onOpenSettings })
           (conn.raw as SavedOAuthLogin).id,
           editLabel,
           editColor,
+          conn.isSandbox ? editSandboxType : undefined,
         );
         await loadSavedOAuthLogins();
       }
@@ -288,6 +296,7 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess, onOpenSettings })
         isSandbox: environment === 'sandbox',
         saveCredentials,
         color,
+        sandboxType: environment === 'sandbox' ? newSandboxType : undefined,
       });
 
       if (result.success) {
@@ -346,11 +355,23 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess, onOpenSettings })
     { color: '#ec4899', name: 'Pink' },
   ];
 
+  // Escape key to go back to connection picker
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && showSignInForm && hasSavedConnections) {
+        setShowSignInForm(false);
+        setError(null);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [showSignInForm, hasSavedConnections]);
+
   // Show connection picker when there are saved connections and user hasn't clicked "New Connection"
   const showPicker = hasSavedConnections && !showSignInForm;
 
   return (
-    <div className="h-full flex items-center justify-center bg-discord-darker relative overflow-hidden">
+    <div className="h-full flex items-center justify-center bg-discord-darker relative overflow-y-auto overflow-x-hidden">
       {/* Animated background */}
       {settings.theme === 'nature' ? (
         <WavesBackground key="waves-bg" />
@@ -384,7 +405,7 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess, onOpenSettings })
       )}
 
       {/* Main Content — Centered */}
-      <div className={`w-full px-8 relative z-10 ${showPicker ? 'max-w-2xl' : 'max-w-md'}`}>
+      <div className={`w-full px-8 py-8 relative z-10 ${showPicker ? 'max-w-2xl' : 'max-w-md'}`}>
         {showPicker ? (
           /* ========== CONNECTION PICKER VIEW ========== */
           <div>
@@ -434,7 +455,7 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess, onOpenSettings })
                       } ${
                         dragColumn === 'sandbox' && dragIndex === index ? 'opacity-40' : ''
                       }`}
-                      style={{ borderLeftColor: conn.color || '#5865f2' }}
+                      style={{ borderLeftColor: conn.sandboxType ? 'transparent' : (conn.color || '#5865f2') }}
                     >
                       {editingConnection === conn.id ? (
                         <div className="p-3 space-y-3" onClick={(e) => e.stopPropagation()}>
@@ -460,15 +481,48 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess, onOpenSettings })
                               />
                             ))}
                           </div>
+                          <div className="space-y-1">
+                            <label className="text-xs text-discord-text-muted">Sandbox Type:</label>
+                            <div className="flex gap-1">
+                              {(['DEV', 'QA', 'STG', 'PROJ'] as const).map((t) => (
+                                <button
+                                  key={t}
+                                  type="button"
+                                  onClick={(e) => { e.stopPropagation(); setEditSandboxType(editSandboxType === t ? undefined : t); }}
+                                  className={`flex-1 px-2 py-1 text-xs font-medium rounded transition-colors ${
+                                    editSandboxType === t
+                                      ? 'bg-discord-accent text-white'
+                                      : 'bg-discord-lighter text-discord-text-muted hover:text-discord-text'
+                                  }`}
+                                >
+                                  {t}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
                           <div className="flex gap-2">
                             <button type="button" onClick={(e) => handleSaveConnectionEdit(conn, e)} className="flex-1 px-3 py-1.5 text-xs bg-discord-accent text-white rounded-lg hover:bg-opacity-80 font-medium">Save</button>
                             <button type="button" onClick={(e) => { e.stopPropagation(); setEditingConnection(null); }} className="px-3 py-1.5 text-xs bg-discord-lighter text-discord-text rounded-lg hover:bg-discord-light">Cancel</button>
                           </div>
                         </div>
                       ) : (
-                        <div className="px-2 py-2.5 flex items-center gap-2 group">
+                        <div className="px-2 py-2.5 flex items-center gap-2 group relative">
+                          {/* Sandbox type tag */}
+                          {conn.sandboxType && (
+                            <div
+                              className="absolute left-0 top-0 bottom-0 w-[14px] flex items-center justify-center rounded-l-lg"
+                              style={{ backgroundColor: conn.color || '#5865f2' }}
+                            >
+                              <span
+                                className="text-[8px] font-bold text-white tracking-wider"
+                                style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)' }}
+                              >
+                                {conn.sandboxType}
+                              </span>
+                            </div>
+                          )}
                           {/* Drag handle */}
-                          <div className="cursor-grab active:cursor-grabbing text-discord-text-muted/30 hover:text-discord-text-muted flex-shrink-0" title="Drag to reorder">
+                          <div className={`cursor-grab active:cursor-grabbing text-discord-text-muted/30 hover:text-discord-text-muted flex-shrink-0 ${conn.sandboxType ? 'ml-2' : ''}`} title="Drag to reorder">
                             <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
                               <circle cx="9" cy="6" r="1.5"/><circle cx="15" cy="6" r="1.5"/>
                               <circle cx="9" cy="12" r="1.5"/><circle cx="15" cy="12" r="1.5"/>
@@ -835,6 +889,29 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess, onOpenSettings })
                             ))}
                           </div>
                         </div>
+                        {environment === 'sandbox' && (
+                          <div className="space-y-2">
+                            <label className="text-sm text-discord-text-muted">
+                              Sandbox Type:
+                            </label>
+                            <div className="flex gap-2">
+                              {(['DEV', 'QA', 'STG', 'PROJ'] as const).map((t) => (
+                                <button
+                                  key={t}
+                                  type="button"
+                                  onClick={() => setNewSandboxType(newSandboxType === t ? undefined : t)}
+                                  className={`flex-1 py-2 px-3 rounded-lg text-xs font-medium transition-colors ${
+                                    newSandboxType === t
+                                      ? 'bg-discord-accent text-white'
+                                      : 'bg-discord-lighter text-discord-text-muted hover:text-discord-text'
+                                  }`}
+                                >
+                                  {t}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        )}
                       </>
                     )}
                   </div>
