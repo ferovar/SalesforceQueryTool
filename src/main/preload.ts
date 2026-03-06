@@ -40,8 +40,18 @@ contextBridge.exposeInMainWorld('electronAPI', {
     updateRecord: (objectName: string, recordId: string, fields: Record<string, any>) =>
       ipcRenderer.invoke('salesforce:updateRecord', objectName, recordId, fields),
     
-    exportToCsv: (data: any[], filename: string) => 
+    exportToCsv: (data: any[], filename: string) =>
       ipcRenderer.invoke('salesforce:exportToCsv', data, filename),
+
+    getOrgLimits: () => ipcRenderer.invoke('salesforce:getOrgLimits'),
+
+    getRecordById: (recordId: string) =>
+      ipcRenderer.invoke('salesforce:getRecordById', recordId),
+
+    getSandboxes: () => ipcRenderer.invoke('salesforce:getSandboxes'),
+
+    createSandbox: (params: { sandboxName: string; licenseType: string; description?: string }) =>
+      ipcRenderer.invoke('salesforce:createSandbox', params),
   },
 
   // Anonymous Apex operations

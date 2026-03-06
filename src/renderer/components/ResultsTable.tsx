@@ -244,6 +244,23 @@ const ResultsTable: React.FC<ResultsTableProps> = ({
     return String(value);
   };
 
+  // Check if a string value looks like a Salesforce ID (15 or 18 alphanumeric chars)
+  const isSalesforceId = (value: any): boolean => {
+    if (typeof value !== 'string') return false;
+    return /^[a-zA-Z0-9]{15}$|^[a-zA-Z0-9]{18}$/.test(value);
+  };
+
+  // Check if a column represents an ID/reference field
+  const isIdColumn = (column: string): boolean => {
+    if (column === 'Id') return true;
+    const field = getFieldMetadata(column);
+    if (field) {
+      return field.type === 'id' || field.type === 'reference';
+    }
+    // Fallback heuristic for when no field metadata is available
+    return column.endsWith('Id') || column.endsWith('__c') === false && column.endsWith('Id');
+  };
+
   // Get the object name from the results
   const getObjectName = (): string => {
     if (!results || results.length === 0) return '';
@@ -696,9 +713,26 @@ const ResultsTable: React.FC<ResultsTableProps> = ({
                           onClick={(e) => e.stopPropagation()}
                         />
                       ) : (
-                        <span className={`truncate block ${cellError ? 'text-red-400' : ''} ${isSaving ? 'opacity-50' : ''}`}>
-                          {formatValue(record[column])}
-                        </span>
+                        (() => {
+                          const cellValue = record[column];
+                          const isClickableId = sourceOrgUrl && isSalesforceId(cellValue) && isIdColumn(column);
+                          return isClickableId ? (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                window.open(`${sourceOrgUrl}/${cellValue}`, '_blank');
+                              }}
+                              className={`truncate block text-blue-400 hover:text-blue-300 hover:underline ${cellError ? 'text-red-400' : ''} ${isSaving ? 'opacity-50' : ''}`}
+                              title={`Open in Salesforce: ${cellValue}`}
+                            >
+                              {formatValue(cellValue)}
+                            </button>
+                          ) : (
+                            <span className={`truncate block ${cellError ? 'text-red-400' : ''} ${isSaving ? 'opacity-50' : ''}`}>
+                              {formatValue(cellValue)}
+                            </span>
+                          );
+                        })()
                       )}
                       {isSaving && !isEditing && (
                         <div className="absolute inset-0 flex items-center justify-center bg-discord-accent/10">

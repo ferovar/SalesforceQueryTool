@@ -105,4 +105,23 @@ export function registerSalesforceHandlers(
     requireString(filename, 'filename');
     return salesforceService.exportToCsv(data as any[], filename);
   });
+
+  handleIpc('salesforce:getOrgLimits', async () => {
+    return salesforceService.getOrgLimits();
+  });
+
+  handleIpc('salesforce:getRecordById', async (recordId: string) => {
+    requireSalesforceId(recordId, 'record ID');
+    return salesforceService.getRecordById(recordId);
+  });
+
+  handleIpc('salesforce:getSandboxes', async () => {
+    return salesforceService.getSandboxes();
+  });
+
+  handleIpc('salesforce:createSandbox', async (params: { sandboxName: string; licenseType: string; description?: string }) => {
+    requireString(params.sandboxName, 'sandbox name');
+    requireString(params.licenseType, 'license type');
+    return salesforceService.createSandbox(params);
+  });
 }

@@ -33,6 +33,15 @@ export interface ElectronAPI {
       Promise<{ success: boolean; data?: { success: boolean; id: string }; error?: string }>;
     
     exportToCsv: (data: any[], filename: string) => Promise<{ success: boolean; data?: string; error?: string }>;
+
+    getOrgLimits: () => Promise<{ success: boolean; data?: Record<string, { Max: number; Remaining: number }>; error?: string }>;
+
+    getRecordById: (recordId: string) => Promise<{ success: boolean; data?: { objectName: string; objectLabel: string; record: Record<string, any>; fields: SalesforceField[] }; error?: string }>;
+
+    getSandboxes: () => Promise<{ success: boolean; data?: SandboxInfo[]; error?: string }>;
+
+    createSandbox: (params: { sandboxName: string; licenseType: string; description?: string }) =>
+      Promise<{ success: boolean; data?: { success: boolean; id?: string }; error?: string }>;
   };
 
   // Anonymous Apex operations
@@ -481,6 +490,16 @@ export interface PlatformEventMessage {
   eventName: string;
   data: any;
   receivedAt: string;
+}
+
+// Sandbox types
+export interface SandboxInfo {
+  id: string;
+  sandboxName: string;
+  licenseType: string;
+  description: string;
+  createdDate: string;
+  lastModifiedDate: string;
 }
 
 declare global {

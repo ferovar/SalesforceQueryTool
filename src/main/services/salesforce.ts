@@ -871,4 +871,153 @@ export class SalesforceService {
       request: log.Request || '',
     }));
   }
+
+  // =============================================
+  // Org Limits
+  // =============================================
+
+  async getOrgLimits(): Promise<Record<string, { Max: number; Remaining: number }>> {
+    if (!this.connection) {
+      throw new Error('Not connected to Salesforce');
+    }
+
+    const result = await this.connection.request('/services/data/v59.0/limits/');
+    return result as Record<string, { Max: number; Remaining: number }>;
+  }
+
+  // =============================================
+  // Record Inspector
+  // =============================================
+
+  async getRecordById(recordId: string): Promise<{
+    objectName: string;
+    objectLabel: string;
+    record: Record<string, any>;
+    fields: SalesforceField[];
+  }> {
+    if (!this.connection) {
+      throw new Error('Not connected to Salesforce');
+    }
+
+    // Get all objects to match keyPrefix
+    const globalResult = await this.connection.describeGlobal();
+    const keyPrefix = recordId.substring(0, 3);
+    const matchedObject = globalResult.sobjects.find(
+      (obj: any) => obj.keyPrefix === keyPrefix
+    );
+
+    if (!matchedObject) {
+      throw new Error(`No Salesforce object found with key prefix "${keyPrefix}"`);
+    }
+
+    const objectName = matchedObject.name;
+
+    // Describe the object to get all fields
+    const description = await this.connection.describe(objectName);
+    const fields: SalesforceField[] = description.fields.map((field: any) => ({
+      name: field.name,
+      label: field.label,
+      type: field.type,
+      length: field.length,
+      referenceTo: field.referenceTo || [],
+      relationshipName: field.relationshipName,
+      nillable: field.nillable,
+      createable: field.createable,
+      updateable: field.updateable,
+      custom: field.custom,
+    }));
+
+    // Build query with all queryable fields (skip compound fields that can't be queried)
+    const compoundTypes = ['address', 'location'];
+    const queryableFields = fields
+      .filter((f) => !compoundTypes.includes(f.type))
+      .map((f) => f.name);
+
+    const query = `SELECT ${queryableFields.join(', ')} FROM ${objectName} WHERE Id = '${recordId}' LIMIT 1`;
+    const queryResult = await this.connection.query(query);
+
+    if (!queryResult.records || queryResult.records.length === 0) {
+      throw new Error(`Record not found: ${recordId}`);
+    }
+
+    return {
+      objectName,
+      objectLabel: matchedObject.label,
+      record: queryResult.records[0] as Record<string, any>,
+      fields,
+    };
+  }
+
+  // =============================================
+  // Sandbox Management
+  // =============================================
+
+  async getSandboxes(): Promise<Array<{
+    id: string;
+    sandboxName: string;
+    licenseType: string;
+    description: string;
+    createdDate: string;
+    lastModifiedDate: string;
+  }>> {
+    if (!this.connection) {
+      throw new Error('Not connected to Salesforce');
+    }
+
+    const toolingApi = this.connection.tooling;
+
+    const result = await toolingApi.query<{
+      Id: string;
+      SandboxName: string;
+      LicenseType: string;
+      Description: string;
+      CreatedDate: string;
+      LastModifiedDate: string;
+    }>(
+      `SELECT Id, SandboxName, LicenseType, Description, CreatedDate, LastModifiedDate
+       FROM SandboxInfo
+       ORDER BY SandboxName ASC`
+    );
+
+    return (result.records || []).map(sb => ({
+      id: sb.Id,
+      sandboxName: sb.SandboxName,
+      licenseType: sb.LicenseType,
+      description: sb.Description || '',
+      createdDate: sb.CreatedDate,
+      lastModifiedDate: sb.LastModifiedDate,
+    }));
+  }
+
+  async createSandbox(params: {
+    sandboxName: string;
+    licenseType: string;
+    description?: string;
+  }): Promise<{ success: boolean; id?: string }> {
+    if (!this.connection) {
+      throw new Error('Not connected to Salesforce');
+    }
+
+    const metadata = {
+      fullName: params.sandboxName,
+      licenseType: params.licenseType,
+      ...(params.description ? { description: params.description } : {}),
+    };
+
+    const result = await (this.connection.metadata as any).create('SandboxInfo', metadata);
+
+    if (Array.isArray(result)) {
+      const first = result[0];
+      if (first?.success) {
+        return { success: true, id: first.id };
+      }
+      throw new Error(first?.errors?.map((e: any) => e.message).join(', ') || 'Failed to create sandbox');
+    }
+
+    if (result?.success) {
+      return { success: true, id: result.id };
+    }
+
+    throw new Error(result?.errors?.map((e: any) => e.message).join(', ') || 'Failed to create sandbox');
+  }
 }

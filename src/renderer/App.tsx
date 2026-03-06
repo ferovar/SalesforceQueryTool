@@ -3,6 +3,7 @@ import TitleBar from './components/TitleBar';
 import LoginPage from './pages/LoginPage';
 import MainPage from './pages/MainPage';
 import SettingsModal from './components/SettingsModal';
+import OrgBreakdownModal from './components/OrgBreakdownModal';
 import PerformanceMonitor from './components/PerformanceMonitor';
 import { SettingsProvider, useSettings } from './contexts/SettingsContext';
 
@@ -19,6 +20,7 @@ function AppContent() {
   const [session, setSession] = useState<UserSession | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isOrgBreakdownOpen, setIsOrgBreakdownOpen] = useState(false);
   const { settings, updateSettings, isProduction, setIsProduction } = useSettings();
 
   useEffect(() => {
@@ -87,18 +89,19 @@ function AppContent() {
           style={{ backgroundColor: session.color }}
         />
       )}
-      <TitleBar 
-        isLoggedIn={isLoggedIn} 
+      <TitleBar
+        isLoggedIn={isLoggedIn}
         onLogout={handleLogout}
         instanceUrl={session?.instanceUrl}
         username={session?.username}
         onOpenSettings={() => setIsSettingsOpen(true)}
         themeColor={session?.color}
+        onOpenOrgBreakdown={() => setIsOrgBreakdownOpen(true)}
       />
       <main className="flex-1 overflow-hidden">
         {isLoggedIn && session ? (
-          <MainPage 
-            session={session} 
+          <MainPage
+            session={session}
             onOpenSettings={() => setIsSettingsOpen(true)}
           />
         ) : (
@@ -117,6 +120,12 @@ function AppContent() {
         onSettingsChange={updateSettings}
         isLoggedIn={isLoggedIn}
         isProduction={isProduction}
+      />
+
+      {/* Org Breakdown Modal (opened from TitleBar) */}
+      <OrgBreakdownModal
+        isOpen={isOrgBreakdownOpen}
+        onClose={() => setIsOrgBreakdownOpen(false)}
       />
       
       {/* Performance Monitor */}

@@ -10,6 +10,8 @@ import AmbientWaves from '../components/AmbientWaves';
 import AmbientPunchout from '../components/AmbientPunchout';
 import AnonymousApexModal from '../components/AnonymousApexModal';
 import PlatformEventsModal from '../components/platformEvents/PlatformEventsModal';
+import OrgBreakdownModal from '../components/OrgBreakdownModal';
+import RecordInspectorModal from '../components/RecordInspectorModal';
 import { useSettings } from '../contexts/SettingsContext';
 
 interface MainPageProps {
@@ -37,6 +39,8 @@ const MainPage: React.FC<MainPageProps> = ({ session, onOpenSettings }) => {
   const [selectedLimit, setSelectedLimit] = useState<number>(settings.defaultQueryLimit);
   const [isApexModalOpen, setIsApexModalOpen] = useState(false);
   const [isPlatformEventsOpen, setIsPlatformEventsOpen] = useState(false);
+  const [isOrgLimitsOpen, setIsOrgLimitsOpen] = useState(false);
+  const [isRecordInspectorOpen, setIsRecordInspectorOpen] = useState(false);
 
   // Load objects on mount
   useEffect(() => {
@@ -330,6 +334,24 @@ const MainPage: React.FC<MainPageProps> = ({ session, onOpenSettings }) => {
             <span>Events</span>
           </button>
           <button
+            onClick={() => setIsRecordInspectorOpen(true)}
+            className="p-2 bg-discord-medium hover:bg-discord-light rounded text-discord-text-muted hover:text-discord-text transition-colors"
+            title="Record Inspector"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+          </button>
+          <button
+            onClick={() => setIsOrgLimitsOpen(true)}
+            className="p-2 bg-discord-medium hover:bg-discord-light rounded text-discord-text-muted hover:text-discord-text transition-colors"
+            title="Org Limits"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+            </svg>
+          </button>
+          <button
             onClick={onOpenSettings}
             className="p-2 bg-discord-medium hover:bg-discord-light rounded text-discord-text-muted hover:text-discord-text transition-colors"
             title="Settings"
@@ -496,6 +518,19 @@ const MainPage: React.FC<MainPageProps> = ({ session, onOpenSettings }) => {
       <PlatformEventsModal
         isOpen={isPlatformEventsOpen}
         onClose={() => setIsPlatformEventsOpen(false)}
+      />
+
+      {/* Org Breakdown Modal */}
+      <OrgBreakdownModal
+        isOpen={isOrgLimitsOpen}
+        onClose={() => setIsOrgLimitsOpen(false)}
+      />
+
+      {/* Record Inspector Modal */}
+      <RecordInspectorModal
+        isOpen={isRecordInspectorOpen}
+        onClose={() => setIsRecordInspectorOpen(false)}
+        instanceUrl={session.instanceUrl}
       />
     </div>
   );

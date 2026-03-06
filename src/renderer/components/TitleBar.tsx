@@ -7,9 +7,10 @@ interface TitleBarProps {
   username?: string;
   onOpenSettings: () => void;
   themeColor?: string;
+  onOpenOrgBreakdown?: () => void;
 }
 
-const TitleBar: React.FC<TitleBarProps> = ({ isLoggedIn, onLogout, instanceUrl, username, onOpenSettings, themeColor }) => {
+const TitleBar: React.FC<TitleBarProps> = ({ isLoggedIn, onLogout, instanceUrl, username, onOpenSettings, themeColor, onOpenOrgBreakdown }) => {
   const handleMinimize = () => window.electronAPI.minimizeWindow();
   const handleMaximize = () => window.electronAPI.maximizeWindow();
   const handleClose = () => window.electronAPI.closeWindow();
@@ -80,7 +81,7 @@ const TitleBar: React.FC<TitleBarProps> = ({ isLoggedIn, onLogout, instanceUrl, 
             <button
               onClick={onLogout}
               className="ml-2 px-2 py-0.5 text-xs rounded transition-colors"
-              style={{ 
+              style={{
                 color: textColor,
                 opacity: 0.7
               }}
