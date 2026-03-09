@@ -201,12 +201,6 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                 onChange={(v) => handleChange('theme', v as ThemeType)}
               />
               <SettingToggle
-                label="Show Recent Objects First"
-                description="Sort recently used objects to the top of the object list."
-                checked={localSettings.showRecentObjectsFirst}
-                onChange={(v) => handleChange('showRecentObjectsFirst', v)}
-              />
-              <SettingToggle
                 label="Show Relationship Fields"
                 description="Display related object fields (e.g., Account.Name) in field picker."
                 checked={localSettings.showRelationshipFields}

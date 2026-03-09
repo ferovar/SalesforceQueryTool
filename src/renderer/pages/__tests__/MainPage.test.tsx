@@ -67,6 +67,8 @@ describe('MainPage', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     localStorageMock.clear();
+    // Seed recent objects so they appear in sidebar
+    localStorageMock.setItem('salesforce-query-tool-recent-objects', JSON.stringify(['Account', 'Contact']));
     mockElectronAPI.salesforce.getObjects.mockResolvedValue({ success: true, data: mockObjects });
     mockElectronAPI.salesforce.describeObject.mockResolvedValue({ success: true, data: mockObjectDescription });
     mockElectronAPI.salesforce.executeQuery.mockResolvedValue({ success: true, data: [] });

@@ -48,23 +48,26 @@ describe('ObjectList', () => {
       expect(screen.getByText('Objects')).toBeInTheDocument();
     });
 
-    it('should render all objects', () => {
+    it('should render recent objects', () => {
+      // Seed recent objects in localStorage
+      localStorageMock.setItem('salesforce-query-tool-recent-objects', JSON.stringify(['Account', 'Contact', 'Custom__c', 'Opportunity']));
       renderWithSettings(<ObjectList {...defaultProps} />);
-      // Account label and API name are both 'Account', so use getAllByText
       expect(screen.getAllByText('Account').length).toBeGreaterThan(0);
       expect(screen.getAllByText('Contact').length).toBeGreaterThan(0);
       expect(screen.getByText('Custom Object')).toBeInTheDocument();
       expect(screen.getAllByText('Opportunity').length).toBeGreaterThan(0);
     });
 
-    it('should show API names for objects', () => {
+    it('should show API names for recent objects', () => {
+      localStorageMock.setItem('salesforce-query-tool-recent-objects', JSON.stringify(['Custom__c']));
       renderWithSettings(<ObjectList {...defaultProps} />);
       expect(screen.getByText('Custom__c')).toBeInTheDocument();
     });
 
-    it('should display object count', () => {
+    it('should display recent object count when not searching', () => {
+      localStorageMock.setItem('salesforce-query-tool-recent-objects', JSON.stringify(['Account', 'Contact']));
       renderWithSettings(<ObjectList {...defaultProps} />);
-      expect(screen.getByText('4 of 4 objects')).toBeInTheDocument();
+      expect(screen.getByText(/2 recent objects/)).toBeInTheDocument();
     });
 
     it('should render the search input', () => {
@@ -73,6 +76,7 @@ describe('ObjectList', () => {
     });
 
     it('should show custom badge for custom objects', () => {
+      localStorageMock.setItem('salesforce-query-tool-recent-objects', JSON.stringify(['Custom__c']));
       renderWithSettings(<ObjectList {...defaultProps} />);
       expect(screen.getByText('Custom')).toBeInTheDocument();
     });
@@ -152,17 +156,21 @@ describe('ObjectList', () => {
       const onSelectObject = jest.fn();
       renderWithSettings(<ObjectList {...defaultProps} onSelectObject={onSelectObject} />);
 
-      // Click the first Account text (the label)
+      // Search for Account to make it visible
+      const searchInput = screen.getByPlaceholderText('Search objects...');
+      await user.type(searchInput, 'Account');
+
       await user.click(screen.getAllByText('Account')[0]);
       expect(onSelectObject).toHaveBeenCalledWith(mockObjects[0]);
     });
 
     it('should highlight the selected object', () => {
+      // Seed recent objects so selected object appears
+      localStorageMock.setItem('salesforce-query-tool-recent-objects', JSON.stringify(['Account']));
       renderWithSettings(
         <ObjectList {...defaultProps} selectedObject={mockObjects[0]} />
       );
 
-      // The selected button should have specific styling
       const accountButtons = screen.getAllByRole('button');
       const accountButton = accountButtons.find(btn => btn.textContent?.includes('Account'));
       expect(accountButton).toBeDefined();
@@ -170,12 +178,17 @@ describe('ObjectList', () => {
   });
 
   describe('custom objects filter', () => {
-    it('should filter to show only custom objects when toggled', async () => {
+    it('should filter to show only custom objects when searching with toggle', async () => {
       const user = userEvent.setup();
       renderWithSettings(<ObjectList {...defaultProps} />);
 
+      // Enable custom only filter
       const customCheckbox = screen.getByLabelText('Custom objects only');
       await user.click(customCheckbox);
+
+      // Search for something to see results
+      const searchInput = screen.getByPlaceholderText('Search objects...');
+      await user.type(searchInput, 'c');
 
       expect(screen.getByText('Custom Object')).toBeInTheDocument();
       expect(screen.queryAllByText('Account')).toHaveLength(0);
@@ -184,9 +197,9 @@ describe('ObjectList', () => {
   });
 
   describe('empty state', () => {
-    it('should show no objects found when list is empty', () => {
-      renderWithSettings(<ObjectList {...defaultProps} objects={[]} />);
-      expect(screen.getByText('No objects found')).toBeInTheDocument();
+    it('should show search prompt when no recent objects', () => {
+      renderWithSettings(<ObjectList {...defaultProps} />);
+      expect(screen.getByText('Search for an object above')).toBeInTheDocument();
     });
   });
 });
