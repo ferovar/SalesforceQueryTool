@@ -124,6 +124,9 @@ export function initWindowManagement(): void {
     };
   });
 
+// Configure app identity and paths (must be set before app is ready)
+app.setName('Salesforce Query Tool');
+app.setPath('userData', path.join(app.getPath('appData'), 'SalesforceQueryTool'));
   // App lifecycle
   app.whenReady().then(() => {
     // Set CSP headers for all windows
