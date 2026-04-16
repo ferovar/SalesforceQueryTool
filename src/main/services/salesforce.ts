@@ -16,6 +16,7 @@ import {
   validateLimit,
   validateDatetime,
 } from './soqlUtils';
+import { recordsToCsv, sanitizeCsvFilename } from './csvExport';
 
 /** Delay before executing Apex to let the trace flag activate (ms) */
 const TRACE_FLAG_SETTLE_MS = 500;
@@ -264,8 +265,12 @@ export class SalesforceService {
       throw new Error('No data to export');
     }
 
+    // Sanitize the renderer-supplied default filename against path traversal
+    // and invalid characters before suggesting it in the save dialog.
+    const safeDefault = sanitizeCsvFilename(filename);
+
     const { filePath } = await dialog.showSaveDialog({
-      defaultPath: filename,
+      defaultPath: safeDefault,
       filters: [{ name: 'CSV Files', extensions: ['csv'] }],
     });
 
@@ -273,70 +278,21 @@ export class SalesforceService {
       throw new Error('Export cancelled');
     }
 
-    // Helper function to flatten nested objects into dot-notation keys
-    const flattenRecord = (record: any, prefix: string = ''): Record<string, any> => {
-      const result: Record<string, any> = {};
-      
-      for (const key of Object.keys(record)) {
-        if (key === 'attributes') continue; // Skip Salesforce metadata
-        
-        const value = record[key];
-        const newKey = prefix ? `${prefix}.${key}` : key;
-        
-        if (value !== null && typeof value === 'object' && !Array.isArray(value)) {
-          // Recursively flatten nested objects (including those with 'attributes')
-          const nested = flattenRecord(value, newKey);
-          Object.assign(result, nested);
-        } else {
-          result[newKey] = value;
-        }
-      }
-      
-      return result;
-    };
+    // Defense-in-depth: refuse to write to anything that isn't a .csv file.
+    // The OS dialog already constrained the user choice, but we verify here
+    // so a compromised dialog or test-time stub cannot drop arbitrary paths.
+    const resolved = path.resolve(filePath);
+    if (path.extname(resolved).toLowerCase() !== '.csv') {
+      throw new Error('Export path must end with .csv');
+    }
 
-    // Flatten all records
-    const flattenedData = data.map(record => flattenRecord(record));
-
-    // Get all unique keys from the flattened data
-    const headers = new Set<string>();
-    flattenedData.forEach((record) => {
-      Object.keys(record).forEach((key) => {
-        headers.add(key);
-      });
-    });
-
-    const headerArray = Array.from(headers);
-
-    // Create CSV content
-    const csvRows: string[] = [];
-    
-    // Add header row
-    csvRows.push(headerArray.map(h => `"${h}"`).join(','));
-
-    // Add data rows
-    flattenedData.forEach((record) => {
-      const row = headerArray.map((header) => {
-        let value = record[header];
-        if (value === null || value === undefined) {
-          return '';
-        }
-        if (typeof value === 'object') {
-          value = JSON.stringify(value);
-        }
-        // Escape quotes and wrap in quotes
-        return `"${String(value).replace(/"/g, '""')}"`;
-      });
-      csvRows.push(row.join(','));
-    });
-
-    const csvContent = csvRows.join('\n');
-    fs.writeFileSync(filePath, csvContent, 'utf-8');
+    const csvContent = recordsToCsv(data);
+    fs.writeFileSync(resolved, csvContent, 'utf-8');
 
     // Open the file location
-    shell.showItemInFolder(filePath);
+    shell.showItemInFolder(resolved);
 
-    return filePath;
+    return resolved;
   }
 
   isConnected(): boolean {
