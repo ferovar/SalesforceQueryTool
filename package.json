@@ -3,7 +3,7 @@
   "version": "2.1.0",
   "description": "A modern Salesforce query tool - like SoqlX but better",
   "main": "dist/main/main.js",
-  "author": "Your Name",
+  "author": "Victor Felisbino <victorfelisbino@users.noreply.github.com>",
   "license": "MIT",
   "scripts": {
     "dev": "concurrently -k \"npm run dev:renderer\" \"npm run dev:main\"",
@@ -135,7 +135,7 @@
         "rpm"
       ],
       "category": "Development",
-      "maintainer": "your-email@example.com"
+      "maintainer": "Victor Felisbino <victorfelisbino@users.noreply.github.com>"
     },
     "files": [
       "dist/**/*",

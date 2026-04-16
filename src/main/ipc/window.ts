@@ -58,7 +58,6 @@ function createMainWindow(): void {
       nodeIntegration: false,
       contextIsolation: true,
       preload: path.join(__dirname, '..', 'preload.js'),
-      // Content Security Policy
       sandbox: true,
     },
   });
@@ -123,6 +122,13 @@ export function initWindowManagement(): void {
       uptime: process.uptime(),
     };
   });
+
+  // Configure app identity and userData path. These must run before the
+  // 'ready' event so Electron picks them up for crash reporter, menus, and
+  // on-disk paths. initWindowManagement() is called synchronously from
+  // main.ts at module load, which is before app is ready.
+  app.setName('Salesforce Query Tool');
+  app.setPath('userData', path.join(app.getPath('appData'), 'SalesforceQueryTool'));
 
   // App lifecycle
   app.whenReady().then(() => {
