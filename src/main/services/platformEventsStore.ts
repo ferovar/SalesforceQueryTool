@@ -4,6 +4,7 @@
  */
 
 import Store from 'electron-store';
+import { getStoreEncryptionKey } from './storeKey';
 
 export interface SavedPayload {
   id: string;
@@ -37,6 +38,7 @@ export class PlatformEventsStore {
   constructor() {
     this.store = new Store<PlatformEventsStoreSchema>({
       name: 'salesforce-platform-events',
+      encryptionKey: getStoreEncryptionKey(),
       defaults: {
         savedPayloads: [],
         publishHistory: [],

@@ -6,6 +6,7 @@
  */
 
 import Store from 'electron-store';
+import { getStoreEncryptionKey } from './storeKey';
 
 export type ThemeType = 'nature' | 'starfield';
 
@@ -53,6 +54,7 @@ export class SettingsStore {
   constructor() {
     this.store = new Store<SettingsStoreSchema>({
       name: 'salesforce-settings',
+      encryptionKey: getStoreEncryptionKey(),
       defaults: {
         settings: defaultSettings,
       },

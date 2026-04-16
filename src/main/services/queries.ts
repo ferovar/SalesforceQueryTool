@@ -1,4 +1,5 @@
 import Store from 'electron-store';
+import { getStoreEncryptionKey } from './storeKey';
 
 export interface SavedQuery {
   id: string;
@@ -19,6 +20,7 @@ export class QueriesStore {
   constructor() {
     this.store = new Store<QueriesStoreSchema>({
       name: 'salesforce-queries',
+      encryptionKey: getStoreEncryptionKey(),
       defaults: {
         savedQueries: [],
       },

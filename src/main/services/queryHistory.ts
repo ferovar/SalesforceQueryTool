@@ -1,4 +1,5 @@
 import Store from 'electron-store';
+import { getStoreEncryptionKey } from './storeKey';
 
 export interface QueryHistoryEntry {
   id: string;
@@ -22,6 +23,7 @@ export class QueryHistoryStore {
   constructor() {
     this.store = new Store<QueryHistoryStoreSchema>({
       name: 'salesforce-query-history',
+      encryptionKey: getStoreEncryptionKey(),
       defaults: {
         history: [],
       },
