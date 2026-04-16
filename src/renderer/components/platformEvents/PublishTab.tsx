@@ -142,8 +142,8 @@ const PublishTab: React.FC<PublishTabProps> = ({
           setPublishResult({ success: false, message: result.error || 'Publish failed' });
         }
       }
-    } catch (err: any) {
-      setPublishResult({ success: false, message: err.message || 'Publish failed' });
+    } catch (err: unknown) {
+      setPublishResult({ success: false, message: err instanceof Error ? err.message : 'Publish failed' });
     } finally {
       setIsPublishing(false);
     }
@@ -162,7 +162,7 @@ const PublishTab: React.FC<PublishTabProps> = ({
       setIsSaveDialogOpen(false);
       setSavePayloadName('');
       loadSavedPayloads();
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Failed to save payload:', err);
     }
   };

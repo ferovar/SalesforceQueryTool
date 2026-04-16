@@ -207,8 +207,8 @@ const RecordMigrationModal: React.FC<RecordMigrationModalProps> = ({
       } else {
         setConnectionError(result.error || 'Failed to connect');
       }
-    } catch (err: any) {
-      setConnectionError(err.message || 'Failed to connect');
+    } catch (err: unknown) {
+      setConnectionError(err instanceof Error ? err.message : 'Failed to connect');
     } finally {
       setIsConnecting(false);
     }
@@ -281,8 +281,8 @@ const RecordMigrationModal: React.FC<RecordMigrationModalProps> = ({
       } else {
         setConnectionError(result.error || 'Failed to analyze records');
       }
-    } catch (err: any) {
-      setConnectionError(err.message || 'Failed to analyze records');
+    } catch (err: unknown) {
+      setConnectionError(err instanceof Error ? err.message : 'Failed to analyze records');
     } finally {
       setIsAnalyzing(false);
     }
@@ -356,8 +356,8 @@ const RecordMigrationModal: React.FC<RecordMigrationModalProps> = ({
         orgResults,
       });
       setStep('complete');
-    } catch (err: any) {
-      setConnectionError(err.message || 'Migration failed');
+    } catch (err: unknown) {
+      setConnectionError(err instanceof Error ? err.message : 'Migration failed');
     } finally {
       setIsMigrating(false);
     }

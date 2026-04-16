@@ -125,7 +125,7 @@ export class SalesforceService {
         instanceUrl,
         username: identity.username,
       };
-    } catch (error: any) {
+    } catch {
       // Access token expired — attempt refresh if we have a refresh token
       if (refreshToken && clientId) {
         try {
@@ -151,7 +151,7 @@ export class SalesforceService {
             // Return the new access token so the caller can persist it
             accessToken: refreshed.accessToken,
           };
-        } catch (refreshError: any) {
+        } catch {
           this.connection = null;
           throw new Error('OAuth session expired and refresh failed. Please log in again.');
         }
