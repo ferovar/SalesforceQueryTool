@@ -1,8 +1,8 @@
-/**
+﻿/**
  * Window lifecycle management — splash window and main application window.
  */
 
-import { BrowserWindow, app, ipcMain, session } from 'electron';
+import { BrowserWindow, app, ipcMain, session, shell } from 'electron';
 import * as path from 'path';
 
 const SPLASH_TIMEOUT_MS = 2000;
@@ -80,6 +80,34 @@ function createMainWindow(): void {
       }
       mainWindow?.show();
     }, SPLASH_TIMEOUT_MS);
+  });
+
+  // Security: intercept window.open from the renderer.
+  // Open external http(s) links in the user's default browser; deny anything else.
+  mainWindow.webContents.setWindowOpenHandler(({ url }) => {
+    if (url.startsWith('https://') || url.startsWith('http://')) {
+      shell.openExternal(url);
+    }
+    return { action: 'deny' };
+  });
+
+  // Security: block in-window navigation away from the app bundle.
+  // Allow the Vite dev server during development; otherwise only allow file:// (loadFile).
+  mainWindow.webContents.on('will-navigate', (event, url) => {
+    const allowed =
+      (isDev() && url.startsWith('http://localhost:5173')) ||
+      url.startsWith('file://');
+    if (!allowed) {
+      event.preventDefault();
+      if (url.startsWith('https://') || url.startsWith('http://')) {
+        shell.openExternal(url);
+      }
+    }
+  });
+
+  // Security: prevent creation of <webview> tags with elevated privileges.
+  mainWindow.webContents.on('will-attach-webview', (event) => {
+    event.preventDefault();
   });
 
   mainWindow.on('closed', () => {
