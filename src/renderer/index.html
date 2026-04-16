@@ -3,7 +3,8 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:;">
+    <!-- Runtime CSP is enforced via onHeadersReceived in src/main/ipc/window.ts. This meta tag is a hardened fallback for when the app is opened outside of the packaged Electron shell (e.g. during tests). -->
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' https://*.salesforce.com https://*.force.com; object-src 'none'; base-uri 'self'; frame-ancestors 'none';">
     <title>Salesforce Studio</title>
   </head>
   <body class="bg-discord-darker">
