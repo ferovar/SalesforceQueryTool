@@ -63,8 +63,8 @@ const OrgBreakdownModal: React.FC<OrgBreakdownModalProps> = ({ isOpen, onClose, 
       } else {
         setLimitsError(result.error || 'Failed to load org limits');
       }
-    } catch (err: any) {
-      setLimitsError(err.message || 'Failed to load org limits');
+    } catch (err) {
+      setLimitsError(err instanceof Error ? err.message : 'Failed to load org limits');
     } finally {
       setIsLoadingLimits(false);
     }
@@ -80,8 +80,8 @@ const OrgBreakdownModal: React.FC<OrgBreakdownModalProps> = ({ isOpen, onClose, 
       } else {
         setSandboxError(result.error || 'Failed to load sandboxes');
       }
-    } catch (err: any) {
-      const msg = err.message || '';
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : '';
       if (msg.includes('INVALID_TYPE') || msg.includes('sObject type') || msg.includes('SandboxInfo')) {
         setSandboxError('Sandbox information is only available from production orgs.');
       } else {

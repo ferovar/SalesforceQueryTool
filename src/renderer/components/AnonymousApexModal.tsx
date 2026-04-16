@@ -110,8 +110,8 @@ const AnonymousApexModal: React.FC<AnonymousApexModalProps> = ({ isOpen, onClose
       
       // Refresh execution history
       loadExecutionHistory();
-    } catch (err: any) {
-      setExecutionError(err.message || 'An unexpected error occurred');
+    } catch (err) {
+      setExecutionError(err instanceof Error ? err.message : 'An unexpected error occurred');
     } finally {
       setIsExecuting(false);
     }

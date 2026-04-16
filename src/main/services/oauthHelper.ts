@@ -222,8 +222,9 @@ export function performOAuthFlow(options: OAuthOptions): Promise<OAuthResult> {
             username: identity.preferred_username,
           });
         }
-      } catch (err: any) {
-        fail(new Error(err.message || 'Failed to exchange authorization code'));
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : 'Failed to exchange authorization code';
+        fail(new Error(message));
       }
     });
 

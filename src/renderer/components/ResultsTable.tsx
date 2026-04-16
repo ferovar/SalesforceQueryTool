@@ -365,7 +365,7 @@ const ResultsTable: React.FC<ResultsTableProps> = ({
           message: result.error || 'Update failed'
         }));
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       setCellStatuses(prev => new Map(prev).set(cellKey, { 
         recordId, 
         column, 

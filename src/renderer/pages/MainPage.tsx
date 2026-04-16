@@ -142,8 +142,9 @@ const MainPage: React.FC<MainPageProps> = ({ session, onOpenSettings }) => {
         
         // Replace SELECT * with the field list
         expandedQuery = expandedQuery.replace(/^SELECT\s+\*\s+FROM/i, `SELECT ${fieldNames} FROM`);
-      } catch (err: any) {
-        setQueryError(`Failed to expand SELECT *: ${err.message}`);
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : String(err);
+        setQueryError(`Failed to expand SELECT *: ${msg}`);
         setIsExecutingQuery(false);
         setQueryStartTime(null);
         return;
@@ -190,13 +191,13 @@ const MainPage: React.FC<MainPageProps> = ({ session, onOpenSettings }) => {
         });
         setHistoryRefreshTrigger(prev => prev + 1);
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       // Check if query was cancelled while executing
       if (queryCancelledRef.current) {
         return; // Don't show error if cancelled
       }
       
-      const errorMsg = err.message || 'An unexpected error occurred';
+      const errorMsg = err instanceof Error ? err.message : 'An unexpected error occurred';
       setQueryError(errorMsg);
       
       // Add failed query to history

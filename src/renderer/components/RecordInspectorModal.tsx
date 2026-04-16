@@ -70,8 +70,8 @@ const RecordInspectorModal: React.FC<RecordInspectorModalProps> = ({ isOpen, onC
       } else {
         setError(result.error || 'Failed to load record');
       }
-    } catch (err: any) {
-      setError(err.message || 'Failed to load record');
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to load record');
     } finally {
       setIsLoading(false);
     }
@@ -125,8 +125,8 @@ const RecordInspectorModal: React.FC<RecordInspectorModalProps> = ({ isOpen, onC
       } else {
         setError(result.error || 'Failed to update field');
       }
-    } catch (err: any) {
-      setError(err.message || 'Failed to update field');
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to update field');
     } finally {
       setIsSaving(false);
     }

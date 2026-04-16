@@ -198,8 +198,8 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess, onOpenSettings })
       } else {
         setError(result.error || 'Login failed');
       }
-    } catch (err: any) {
-      setError(err.message || 'An unexpected error occurred');
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'An unexpected error occurred');
     } finally {
       setIsLoading(false);
     }
@@ -217,8 +217,8 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess, onOpenSettings })
       } else {
         setError(result.error || 'OAuth session expired. Please log in again.');
       }
-    } catch (err: any) {
-      setError(err.message || 'An unexpected error occurred');
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'An unexpected error occurred');
     } finally {
       setIsLoading(false);
     }
@@ -304,8 +304,8 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess, onOpenSettings })
       } else {
         setError(result.error || 'Login failed');
       }
-    } catch (err: any) {
-      setError(err.message || 'An unexpected error occurred');
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'An unexpected error occurred');
     } finally {
       setIsLoading(false);
     }
@@ -333,8 +333,8 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess, onOpenSettings })
       } else {
         setError(result.error || 'OAuth login failed');
       }
-    } catch (err: any) {
-      setError(err.message || 'An unexpected error occurred');
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'An unexpected error occurred');
     } finally {
       setIsLoading(false);
     }
