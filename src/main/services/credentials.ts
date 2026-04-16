@@ -1,4 +1,5 @@
 import Store from 'electron-store';
+import { getStoreEncryptionKey } from './storeKey';
 import { safeStorage } from 'electron';
 import * as crypto from 'crypto';
 
@@ -52,6 +53,7 @@ export class CredentialsStore {
   constructor() {
     this.store = new Store<StoreSchema>({
       name: 'salesforce-credentials',
+      encryptionKey: getStoreEncryptionKey(),
       defaults: {
         lastCredentials: null,
         savedLogins: [],

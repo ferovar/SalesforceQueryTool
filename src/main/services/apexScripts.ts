@@ -1,4 +1,5 @@
 import Store from 'electron-store';
+import { getStoreEncryptionKey } from './storeKey';
 
 export interface SavedApexScript {
   id: string;
@@ -36,6 +37,7 @@ export class ApexScriptsStore {
   constructor() {
     this.store = new Store<ApexScriptsStoreSchema>({
       name: 'salesforce-apex-scripts',
+      encryptionKey: getStoreEncryptionKey(),
       defaults: {
         scripts: [],
         executionHistory: [],

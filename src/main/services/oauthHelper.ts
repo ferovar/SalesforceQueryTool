@@ -90,6 +90,9 @@ export function performOAuthFlow(options: OAuthOptions): Promise<OAuthResult> {
   const loginUrl = getLoginUrl(isSandbox);
   const codeVerifier = generateCodeVerifier();
   const codeChallenge = generateCodeChallenge(codeVerifier);
+  // Random state binds the authorize redirect to this flow. Validated on callback
+  // to prevent CSRF / code-injection attacks on the localhost listener.
+  const state = crypto.randomBytes(16).toString('base64url');
 
   return new Promise((resolve, reject) => {
     let server: http.Server | null = null;
@@ -133,6 +136,15 @@ export function performOAuthFlow(options: OAuthOptions): Promise<OAuthResult> {
           res.writeHead(200, { 'Content-Type': 'text/html' });
           res.end(errorHtml(errorDesc));
           fail(new Error(errorDesc));
+          return;
+        }
+
+        // Validate state parameter — rejects forged/mis-routed callbacks.
+        const returnedState = parsedUrl.query.state;
+        if (typeof returnedState !== 'string' || returnedState !== state) {
+          res.writeHead(400, { 'Content-Type': 'text/html' });
+          res.end(errorHtml('Invalid OAuth state parameter — possible CSRF. Please retry.'));
+          fail(new Error('OAuth state mismatch'));
           return;
         }
 
@@ -230,7 +242,7 @@ export function performOAuthFlow(options: OAuthOptions): Promise<OAuthResult> {
 
     // ── Start listening ──────────────────────────────────────────────────
 
-    server.listen(port, 'localhost', () => {
+    server.listen(port, '127.0.0.1', () => {
       // Build the authorize URL with PKCE params
       const oauthUrl = new URL(`${loginUrl}/services/oauth2/authorize`);
       oauthUrl.searchParams.set('response_type', 'code');
@@ -239,6 +251,7 @@ export function performOAuthFlow(options: OAuthOptions): Promise<OAuthResult> {
       oauthUrl.searchParams.set('scope', OAUTH_SCOPES);
       oauthUrl.searchParams.set('code_challenge', codeChallenge);
       oauthUrl.searchParams.set('code_challenge_method', 'S256');
+      oauthUrl.searchParams.set('state', state);
 
       // Open in an embedded BrowserWindow for a self-contained experience
       const host = new URL(loginUrl).host; // login.salesforce.com or test.salesforce.com
@@ -289,7 +302,7 @@ export function performOAuthFlow(options: OAuthOptions): Promise<OAuthResult> {
       });
     });
 
-    server.on('error', (err: any) => {
+    server.on('error', (err: NodeJS.ErrnoException) => {
       if (err.code === 'EADDRINUSE') {
         fail(new Error(`OAuth callback port ${port} is already in use. Please close any other Salesforce tools and try again.`));
       } else {
